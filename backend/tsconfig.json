@@ -36,7 +36,8 @@
     "prisma.config.ts",
     "prisma.shadow-check.config.ts",
     "vitest.config.ts",
-    "vitest.config.e2e.ts"
+    "vitest.config.e2e.ts",
+    "vitest.config.db.ts"
   ],
   "exclude": ["node_modules", "dist", "coverage"]
 }

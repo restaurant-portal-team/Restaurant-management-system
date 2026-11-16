@@ -1,16 +1,21 @@
 /**
- * Mandatory name normalisation for menu categories, menu items and ingredients (F02 decision Q1a).
+ * Mandatory name normalisation for menu categories, menu items and ingredients (F02 decisions Q1a/Q1b).
  *
  * Display name:  trim, collapse every internal whitespace run to ONE space, reject control characters
- *                (tabs, newlines, etc.). Unicode letters (including Urdu) are preserved.
- * Name key:      displayName.toLowerCase()  (locale-independent JS lower-casing)
+ *                (tabs, newlines, etc.). Unicode letters (including Urdu) are preserved unchanged.
+ * Name key:      pgSimpleLower(displayName) — Unicode SIMPLE lowercase using PostgreSQL 17's own builtin
+ *                case table (generated into src/common/unicode/), i.e. exactly
+ *                lower(name COLLATE "pg_c_utf8").
  *
- * Database contract: CHECK (name_key = lower(btrim(name))). A normalised display name has no leading or
- * trailing spaces, so btrim(name) = name and the key must equal PostgreSQL lower(name).
- * KNOWN RISK (Q1b): PostgreSQL lower() depends on the database LC_CTYPE, JS toLowerCase() on Unicode
- * case mappings. They can differ for some non-ASCII characters; a mismatch makes the DB CHECK reject the
- * write (fails safe). Compatibility is verified at Gate C; never weaken the CHECK to hide a mismatch.
+ * Database contract (migration 20261116..._name_key_builtin_lower):
+ *   CHECK (name_key = lower(btrim(name) COLLATE "pg_c_utf8"))
+ * A normalised display name has no leading/trailing spaces, so btrim(name) = name.
+ *
+ * Why not String.prototype.toLowerCase(): it applies full/contextual Unicode mappings
+ * ("İ" -> "i̇", final sigma -> "ς") and follows the Node.js Unicode version (17.0), which differs from
+ * PostgreSQL 17's table (Unicode 15.1) for 55 newer code points. See docs/implementation-plan.txt (Q1b).
  */
+import { pgSimpleLower } from './unicode/pg-simple-lower.js';
 
 export class InvalidNameError extends Error {
   constructor(message: string) {
@@ -47,5 +52,5 @@ export function normalizeName(raw: string, maxLength: number): NormalizedName {
     throw new InvalidNameError(`Name must be at most ${maxLength} characters.`);
   }
 
-  return { name, nameKey: name.toLowerCase() };
+  return { name, nameKey: pgSimpleLower(name) };
 }

@@ -6,8 +6,12 @@
  * - no destructive or non-transactional statements and no privilege/role changes;
  * - the hand-written CHECK constraints for business invariants are present;
  * - the Prisma-generated block matches what `prisma migrate diff --from-empty --to-schema` produces
- *   offline from the current schema (detects schema/migration drift without touching any database).
+ *   offline from the current schema (detects schema/migration drift without touching any database);
+ * - the applied initial migration is byte-for-byte unchanged (checksum recorded at Gate B);
+ * - DROP is forbidden everywhere, with ONE narrowly scoped, human-approved exception (Q1b): the
+ *   remediation migration may DROP + re-ADD exactly three named CHECK constraints.
  */
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,6 +19,26 @@ import { BACKEND_ROOT } from './migration-env.ts';
 
 const MIGRATIONS_DIR = join(BACKEND_ROOT, 'prisma', 'migrations');
 const INIT_MIGRATION = '20261116145432_init_schema';
+/** SHA-256 of the initial migration as applied at Gate B (recorded in _prisma_migrations.checksum). */
+const INIT_MIGRATION_SHA256 = 'dd7664b88aae285edacfa666b6985ae9ce9ecc4d71cdd34c3730b389183230f9';
+
+/** Human-approved Q1b exception: the ONLY migration allowed to DROP anything, and only these constraints. */
+const REMEDIATION_MIGRATION = '20261116153418_name_key_builtin_lower';
+const REMEDIATION_ALLOWED_DROPS = [
+  'menu_categories_name_key_normalised_chk',
+  'menu_items_name_key_normalised_chk',
+  'ingredients_name_key_normalised_chk',
+] as const;
+
+/** Removes the approved DROP CONSTRAINT clauses (remediation migration only) before forbidden-statement scans. */
+function withoutApprovedDrops(folder: string, code: string): string {
+  if (folder !== REMEDIATION_MIGRATION) return code;
+  let result = code;
+  for (const name of REMEDIATION_ALLOWED_DROPS) {
+    result = result.replace(new RegExp(`DROP CONSTRAINT "${name}",`, 'g'), '');
+  }
+  return result;
+}
 
 const GENERATED_START = '-- ===== BEGIN PRISMA-GENERATED';
 const GENERATED_END = '-- ===== END PRISMA-GENERATED =====';
@@ -84,6 +108,7 @@ describe('Prisma migrations (offline)', () => {
     });
 
     it('contains no destructive, non-transactional or privilege statements', () => {
+      const scanned = withoutApprovedDrops(folder, code);
       const forbidden: [string, RegExp][] = [
         ['DROP', /\bDROP\b/i],
         ['TRUNCATE', /\bTRUNCATE\b/i],
@@ -99,8 +124,65 @@ describe('Prisma migrations (offline)', () => {
         ['VACUUM', /\bVACUUM\b/i],
       ];
       for (const [name, pattern] of forbidden) {
-        expect(pattern.test(code), `forbidden statement: ${name}`).toBe(false);
+        expect(pattern.test(scanned), `forbidden statement: ${name}`).toBe(false);
       }
+    });
+  });
+
+  it('keeps the applied initial migration byte-for-byte unchanged (Gate B checksum)', () => {
+    const digest = createHash('sha256')
+      .update(readFileSync(join(MIGRATIONS_DIR, INIT_MIGRATION, 'migration.sql')))
+      .digest('hex');
+    expect(digest).toBe(INIT_MIGRATION_SHA256);
+  });
+
+  it('allows DROP CONSTRAINT in no migration other than the approved remediation', () => {
+    for (const folder of migrationFolders()) {
+      if (folder === REMEDIATION_MIGRATION) continue;
+      expect(stripComments(readMigration(folder)), folder).not.toMatch(/DROP\s+CONSTRAINT/i);
+    }
+  });
+
+  describe('Q1b remediation migration (narrow DROP CONSTRAINT exception)', () => {
+    const code = stripComments(readMigration(REMEDIATION_MIGRATION));
+
+    it('exists and sorts after the initial migration', () => {
+      const folders = migrationFolders();
+      expect(folders).toContain(REMEDIATION_MIGRATION);
+      expect(folders.indexOf(REMEDIATION_MIGRATION)).toBeGreaterThan(folders.indexOf(INIT_MIGRATION));
+    });
+
+    it('drops exactly the three approved constraints, each once', () => {
+      const dropped = [...code.matchAll(/DROP\s+CONSTRAINT\s+"([a-z_]+)"/gi)].map((m) => m[1]);
+      expect(dropped.sort()).toEqual([...REMEDIATION_ALLOWED_DROPS].sort());
+      expect(code).not.toMatch(/DROP\s+(TABLE|COLUMN|INDEX|SCHEMA|TYPE|SEQUENCE|VIEW|FUNCTION|TRIGGER)/i);
+      expect(code).not.toMatch(/\bIF\s+EXISTS\b/i);
+    });
+
+    it('re-adds each constraint with the same name in the SAME ALTER TABLE statement using pg_c_utf8', () => {
+      const tableOf: Record<(typeof REMEDIATION_ALLOWED_DROPS)[number], string> = {
+        menu_categories_name_key_normalised_chk: 'menu_categories',
+        menu_items_name_key_normalised_chk: 'menu_items',
+        ingredients_name_key_normalised_chk: 'ingredients',
+      };
+      for (const name of REMEDIATION_ALLOWED_DROPS) {
+        const statement = new RegExp(
+          String.raw`ALTER TABLE "${tableOf[name]}"\s+DROP CONSTRAINT "${name}",\s+ADD CONSTRAINT "${name}"\s+` +
+            String.raw`CHECK \("name_key" = lower\(btrim\("name"\) COLLATE "pg_c_utf8"\)\);`,
+        );
+        expect(code, name).toMatch(statement);
+      }
+    });
+
+    it('contains only the three ALTER TABLE statements besides BEGIN/SET LOCAL/COMMIT', () => {
+      const statements = code
+        .split(';')
+        .map((s) => s.trim().replace(/\s+/g, ' '))
+        .filter(Boolean);
+      const other = statements.filter((s) => !/^(BEGIN|COMMIT|SET LOCAL |ALTER TABLE )/.test(s));
+      expect(other).toEqual([]);
+      expect(statements.filter((s) => s.startsWith('ALTER TABLE '))).toHaveLength(3);
+      expect(code).not.toMatch(/\b(CREATE|INSERT|UPDATE|DELETE)\b/i);
     });
   });
 

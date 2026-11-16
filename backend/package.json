@@ -21,6 +21,8 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "test:db": "vitest run --config ./vitest.config.db.ts",
+    "unicode:generate": "node scripts/unicode/generate-pg-simple-lower.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate",
@@ -28,7 +30,6 @@
     "db:assert-isolation": "node scripts/db/assert-isolation.ts",
     "db:migrate:status": "prisma migrate status",
     "db:migrate:check-shadow": "npm run db:assert-isolation && prisma migrate diff --config prisma.shadow-check.config.ts --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
-    "db:migrate:dev": "npm run db:assert-isolation && prisma migrate dev",
     "db:migrate:deploy": "npm run db:assert-isolation && prisma migrate deploy"
   },
   "dependencies": {

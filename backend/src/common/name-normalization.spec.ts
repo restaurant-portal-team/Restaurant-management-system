@@ -17,6 +17,22 @@ describe('normalizeName', () => {
     expect(normalizeName('Pizza', 80).nameKey).toBe('pizza');
   });
 
+  it('computes keys with PostgreSQL-compatible simple lowercase (Q1b)', () => {
+    expect(normalizeName('İskender', 80)).toEqual({ name: 'İskender', nameKey: 'iskender' });
+    expect(normalizeName('ΟΔΥΣΣΕΥΣ', 80)).toEqual({ name: 'ΟΔΥΣΣΕΥΣ', nameKey: 'οδυσσευσ' });
+    expect(normalizeName('ΣΟΥΒΛΑΚΙ', 80).nameKey).toBe('σουβλακι');
+    expect(normalizeName('ılık', 80).nameKey).toBe('ılık');
+    expect(normalizeName('Straße', 80).nameKey).toBe('straße');
+    expect(normalizeName('STRASSE', 80).nameKey).toBe('strasse');
+    expect(normalizeName('ẞ', 80).nameKey).toBe('ß');
+    expect(normalizeName('Crème   Brûlée', 80)).toEqual({ name: 'Crème Brûlée', nameKey: 'crème brûlée' });
+    expect(normalizeName('ǅemal', 80).nameKey).toBe('ǆemal');
+  });
+
+  it('keeps the display name unchanged except whitespace normalisation', () => {
+    expect(normalizeName('  İSKENDER  Kebap ', 80).name).toBe('İSKENDER Kebap');
+  });
+
   it('preserves Unicode names including Urdu', () => {
     const result = normalizeName('  چکن   کڑاہی ', 120);
     expect(result.name).toBe('چکن کڑاہی');

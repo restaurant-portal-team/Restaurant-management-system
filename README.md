@@ -113,8 +113,9 @@ npm run dev            # http://localhost:5173
 | `npm run db:assert-isolation` | Live check that the shadow DB is a different database (`-- --self-test` checks the guard refuses identical targets) | No |
 | `npm run db:migrate:status`   | `prisma migrate status` | No |
 | `npm run db:migrate:check-shadow` | Isolation preflight, then `prisma migrate diff --from-migrations --to-schema --exit-code` with the **shadow-only** config `prisma.shadow-check.config.ts` (no main-database URL is given to Prisma) | Shadow DB only (Prisma wipes/rebuilds it) |
-| `npm run db:migrate:dev`      | Isolation preflight, then `prisma migrate dev` | **Yes — only with explicit approval (from F02)** |
 | `npm run db:migrate:deploy`   | Isolation preflight, then `prisma migrate deploy` | **Yes — only with explicit approval** |
+| `npm run test:db`             | Real-database suites: rollback-only runtime tests + read-only migrator checks (section 6.5) | No persistent data (sequence values advance) |
+| `npm run unicode:generate`    | Regenerates the PostgreSQL 17 case table used for name keys (section 6.6); offline | No |
 
 ### Shadow-database safety (defense-in-depth, not an absolute guarantee)
 
@@ -127,7 +128,104 @@ Prisma **wipes the shadow database**. Two layers guard against pointing it at re
 
 Always run migrations through the npm scripts, never accept a Prisma "reset" of `restaurant_dev` without explicit approval, and never point `SHADOW_DATABASE_URL` at `restaurant_dev`.
 
-## 6. API
+## 6. Database operations (F02)
+
+All commands below run in `backend/`. Every database-changing step requires explicit human approval.
+
+### 6.1 Role separation
+
+| Role | Used by | Owns | May do |
+| ---- | ------- | ---- | ------ |
+| `restaurant_migrator` | Prisma CLI only (`backend/.env.migrate`) | `restaurant_dev`, `restaurant-dev-shadow`, all tables, sequence, enums | DDL via approved migrations |
+| `restaurant_app` | NestJS runtime only (`backend/.env`) | nothing | DML on application tables (with the audit restrictions in 6.7); no DDL, no `_prisma_migrations`, no TEMP, no access to the shadow DB |
+
+The API refuses to start if migration credentials are present in its environment; `prisma.config.ts` never reads `DATABASE_URL`.
+
+### 6.2 Migration authoring policy (enforced by `scripts/db/migration-sql.spec.ts`)
+
+- Schema changes are **new, additive migrations**. Applied migrations are never edited (the initial migration's SHA-256 is pinned in the test).
+- Each `migration.sql` contains exactly one explicit `BEGIN; … COMMIT;`, sets `SET LOCAL lock_timeout` and `SET LOCAL statement_timeout`, and is ASCII-only with LF line endings.
+- **Forbidden in every migration:** `DROP`, `TRUNCATE`, `DELETE FROM`, `UPDATE`, `INSERT INTO`, `CONCURRENTLY`, `ALTER TYPE`, `GRANT`, `REVOKE`, `CREATE/ALTER/DROP ROLE`, `CREATE EXTENSION`, `VACUUM`, `ROLLBACK`, `SAVEPOINT`.
+- **Single, narrowly scoped exception (human-approved Q1b remediation):** only migration `20261116153418_name_key_builtin_lower` may `DROP CONSTRAINT`, and only for exactly `menu_categories_name_key_normalised_chk`, `menu_items_name_key_normalised_chk` and `ingredients_name_key_normalised_chk`, each re-added with the same name in the same `ALTER TABLE` using `COLLATE "pg_c_utf8"`. This is **not** a general permission: no `IF EXISTS`, no other `DROP`, and no other migration may contain `DROP CONSTRAINT`. Any future destructive operation needs a new explicit approval and test change.
+- CHECK constraints are hand-written in the migration SQL (Prisma does not track them). In the initial migration the Prisma-generated block must equal an offline `prisma migrate diff --from-empty --to-schema` (drift test).
+- Migrations never contain role names or privilege statements; privileges are applied by a human (6.7).
+
+### 6.3 Prohibited commands against `restaurant_dev`
+
+- `prisma migrate reset`, `prisma db push`, and `prisma migrate dev`. There is intentionally **no** npm script for `prisma migrate dev` (the former `db:migrate:dev` script was removed after F02 because it targeted `restaurant_dev` through `MIGRATION_DATABASE_URL`). Running `npx prisma migrate dev` directly is still technically possible and remains prohibited by policy.
+- `prisma migrate resolve` without explicit approval.
+- Accepting any Prisma prompt to reset or drop data.
+
+### 6.4 Normal migration deployment (approved gate sequence)
+
+1. Offline: `npm run lint`, `npm run typecheck`, `npm test` (includes the migration policy tests), `npm run prisma:validate`.
+2. Preflight (read-only): `npm run db:assert-isolation` and `npm run db:verify-roles`.
+3. Shadow dry run: `npm run db:migrate:check-shadow` — expect exit 0 and "No difference detected".
+4. `npm run db:migrate:status` — confirm exactly the expected pending migration(s).
+5. Deploy (after approval): `npm run db:migrate:deploy`.
+6. Verify: `npm run db:migrate:status` ("Database schema is up to date!"), `npm run test:db`, `npm run db:verify-roles`.
+
+**Approved deviation (F02):** the shadow workflow uses `prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code` with the shadow-only config `prisma.shadow-check.config.ts` **instead of** `prisma migrate dev`. These commands are **not equivalent**: the dry run proves the migrations apply cleanly from scratch on `restaurant-dev-shadow` and match `schema.prisma`; it does not create migration files, does not inspect or modify `restaurant_dev`, and does not record history. New migration SQL is produced offline (`prisma migrate diff --from-empty`/review) and reviewed by a human.
+
+### 6.5 Database verification tests
+
+`npm run test:db` (requires `backend/.env` and `backend/.env.migrate`):
+
+- `test/db/gate-c.db-spec.ts` — runs only as `restaurant_app` on `restaurant_dev` (refuses otherwise); every write inside `BEGIN … ROLLBACK`, expected failures inside `SAVEPOINT`s, no `COMMIT`. Covers the privilege matrix, DDL rejection (42501), all CHECK/UNIQUE/FK/NOT NULL constraints, UUID v7 via Prisma, the order lifecycle, audit-table restrictions and full-range Unicode compatibility.
+- `test/db/migration-history.db-spec.ts` — forced read-only `restaurant_migrator` session: migration history and checksums, exact hardened ACLs.
+- Sequence values (e.g. `orders_order_number_seq`) advance during tests; this is expected because sequences are non-transactional. No rows persist.
+
+### 6.6 Unicode name keys
+
+- Names are normalised with `normalizeName()` (`src/common/name-normalization.ts`); the key is `pgSimpleLower(name)`, never `String.prototype.toLowerCase()`.
+- The database enforces `name_key = lower(btrim(name) COLLATE "pg_c_utf8")` (PostgreSQL 17 builtin provider, platform-independent).
+- `npm run unicode:generate` regenerates `src/common/unicode/pg-simple-lower.generated.ts` from the installed PostgreSQL 17 headers (default `C:/Program Files/PostgreSQL/17/include/server/common`, override with `PG_COMMON_INCLUDE_DIR`). `scripts/unicode/pg-simple-lower.spec.ts` compares every code point when the headers are present.
+- On any PostgreSQL major-version change: regenerate, run `npm test` and `npm run test:db` (full-range database comparison) before upgrading, and re-check existing `name_key` values.
+
+### 6.7 Privilege-hardening runbook (human-executed in pgAdmin)
+
+Execute as **`postgres`** (superuser; acts as the object owner) or as the owner **`restaurant_migrator`**, in a Query Tool connected to the **target database** (`restaurant_dev` here). Run one statement at a time and verify after each.
+
+| Step | SQL | Expected effect |
+| ---- | --- | --------------- |
+| D1 | `REVOKE SELECT, INSERT, UPDATE, DELETE ON TABLE public._prisma_migrations FROM restaurant_app;` | runtime cannot read/modify migration history (42501) |
+| D2 | `REVOKE TEMPORARY ON DATABASE restaurant_dev FROM PUBLIC;` | runtime cannot create temp tables (42501); migrator keeps its own TEMP |
+| E1 | `REVOKE UPDATE, DELETE ON TABLE public.inventory_movements FROM restaurant_app;` | stock ledger is append-only for the runtime (INSERT/SELECT kept) |
+| E2 | `REVOKE DELETE ON TABLE public.payments FROM restaurant_app;` | payments cannot be deleted by the runtime (INSERT/SELECT/UPDATE kept) |
+
+Verification (effective privileges, read-only):
+
+```sql
+SELECT has_table_privilege('restaurant_app','public._prisma_migrations','SELECT')    AS d1_sel,  -- false
+       has_database_privilege('restaurant_app', current_database(), 'TEMPORARY')     AS d2_temp, -- false
+       has_table_privilege('restaurant_app','public.inventory_movements','UPDATE')   AS e1_upd,  -- false
+       has_table_privilege('restaurant_app','public.inventory_movements','DELETE')   AS e1_del,  -- false
+       has_table_privilege('restaurant_app','public.payments','DELETE')              AS e2_del,  -- false
+       has_table_privilege('restaurant_app','public.payments','UPDATE')              AS e2_upd,  -- true
+       has_table_privilege('restaurant_migrator','public._prisma_migrations','INSERT') AS mig_ok; -- true
+```
+
+Then run `npm run test:db` (asserts the exact ACLs) and `npm run db:verify-roles`.
+
+Rollback (restores the original ACLs exactly):
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public._prisma_migrations TO restaurant_app;
+GRANT TEMPORARY ON DATABASE restaurant_dev TO PUBLIC;
+GRANT UPDATE, DELETE ON TABLE public.inventory_movements TO restaurant_app;
+GRANT DELETE ON TABLE public.payments TO restaurant_app;
+```
+
+**When to run it**
+
+- **First-time setup of a fresh database:** after the human creates roles/databases and default privileges (section 1) and the **first** `npm run db:migrate:deploy` creates the tables and `_prisma_migrations`, run D1, D2, E1 and E2 immediately, then verify. Until then the runtime role holds DML on `_prisma_migrations` and the audit tables.
+- **Normal deployments to an already-hardened database:** ACLs persist, so D1–E2 are not re-run; always verify afterwards (6.4 step 6). If a migration adds a **new table**, it automatically receives runtime DML (see 6.8) — review whether it needs restrictions (separate approval).
+
+### 6.8 Default privileges risk and pending guard
+
+`ALTER DEFAULT PRIVILEGES FOR ROLE restaurant_migrator IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO restaurant_app` grants runtime DML on **every future table** the migrator creates — including `_prisma_migrations` whenever Prisma creates it on an empty database, and any future audit table. A **post-migration privilege guard** (a read-only check that fails if the runtime role holds any privilege on `_prisma_migrations` or TEMP on the database) is **pending and not implemented**. Until it exists, the verification in 6.7 is **mandatory** after creating a fresh database and after every migration deployment.
+
+## 7. API
 
 All endpoints are served under `/api/v1`. The contract register lives in `docs/api-endpoints.txt` (local only).
 
@@ -135,7 +233,7 @@ All endpoints are served under `/api/v1`. The contract register lives in `docs/a
 
 Security baseline: Helmet headers, explicit CORS allowlist (no `*`), global ValidationPipe (`whitelist`, `forbidNonWhitelisted`), global rate limiting, centralised safe error responses with request IDs, `x-powered-by` disabled, API bound to `127.0.0.1` by default.
 
-## 7. Git hygiene
+## 8. Git hygiene
 
 Git operations are performed by the developer. `.gitignore` excludes `/docs/`, all `.env*` files except `*.example`, build output and the generated Prisma client. Verify locally with:
 
