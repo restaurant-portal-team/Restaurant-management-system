@@ -112,6 +112,7 @@ npm run dev            # http://localhost:5173
 | `npm run db:verify-roles`     | Read-only catalog checks of both roles, ownership, privileges and default privileges | No |
 | `npm run db:assert-isolation` | Live check that the shadow DB is a different database (`-- --self-test` checks the guard refuses identical targets) | No |
 | `npm run db:migrate:status`   | `prisma migrate status` | No |
+| `npm run db:migrate:check-shadow` | Isolation preflight, then `prisma migrate diff --from-migrations --to-schema --exit-code` with the **shadow-only** config `prisma.shadow-check.config.ts` (no main-database URL is given to Prisma) | Shadow DB only (Prisma wipes/rebuilds it) |
 | `npm run db:migrate:dev`      | Isolation preflight, then `prisma migrate dev` | **Yes — only with explicit approval (from F02)** |
 | `npm run db:migrate:deploy`   | Isolation preflight, then `prisma migrate deploy` | **Yes — only with explicit approval** |
 

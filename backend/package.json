@@ -27,6 +27,7 @@
     "db:verify-roles": "node scripts/db/verify-roles.ts",
     "db:assert-isolation": "node scripts/db/assert-isolation.ts",
     "db:migrate:status": "prisma migrate status",
+    "db:migrate:check-shadow": "npm run db:assert-isolation && prisma migrate diff --config prisma.shadow-check.config.ts --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
     "db:migrate:dev": "npm run db:assert-isolation && prisma migrate dev",
     "db:migrate:deploy": "npm run db:assert-isolation && prisma migrate deploy"
   },

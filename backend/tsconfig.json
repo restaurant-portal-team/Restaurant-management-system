@@ -29,6 +29,14 @@
 
     "types": ["vitest/globals", "node"]
   },
-  "include": ["src", "test", "scripts", "prisma.config.ts", "vitest.config.ts", "vitest.config.e2e.ts"],
+  "include": [
+    "src",
+    "test",
+    "scripts",
+    "prisma.config.ts",
+    "prisma.shadow-check.config.ts",
+    "vitest.config.ts",
+    "vitest.config.e2e.ts"
+  ],
   "exclude": ["node_modules", "dist", "coverage"]
 }
