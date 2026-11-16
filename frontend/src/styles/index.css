@@ -1,0 +1,115 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens (foundation only — the full design system is delivered in F04).
+ * Colors use OKLCH for perceptually even light/dark themes.
+ */
+@theme {
+  --font-sans:
+    'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue',
+    Arial, sans-serif;
+  --font-display:
+    'Inter Display', 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  --color-brand-50: oklch(97.5% 0.015 45);
+  --color-brand-100: oklch(94.5% 0.035 45);
+  --color-brand-200: oklch(88% 0.07 45);
+  --color-brand-300: oklch(80% 0.11 45);
+  --color-brand-400: oklch(71% 0.15 42);
+  --color-brand-500: oklch(64% 0.17 40);
+  --color-brand-600: oklch(56% 0.16 38);
+  --color-brand-700: oklch(47% 0.13 36);
+  --color-brand-800: oklch(38% 0.1 35);
+  --color-brand-900: oklch(30% 0.07 35);
+
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+
+  --color-success: oklch(62% 0.15 155);
+  --color-warning: oklch(75% 0.15 75);
+  --color-danger: oklch(58% 0.2 27);
+
+  --radius-card: 1.25rem;
+  --shadow-card: 0 1px 2px oklch(20% 0.02 40 / 6%), 0 8px 24px -8px oklch(20% 0.02 40 / 12%);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-fade-up: fade-up 480ms var(--ease-out-soft) both;
+  --animate-pulse-dot: pulse-dot 1.8s ease-in-out infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --surface: oklch(98.6% 0.006 70);
+    --surface-raised: oklch(100% 0 0);
+    --surface-sunken: oklch(96% 0.01 70);
+    --ink: oklch(22% 0.02 45);
+    --ink-muted: oklch(48% 0.02 45);
+    --line: oklch(90% 0.012 60);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface: oklch(17% 0.012 45);
+      --surface-raised: oklch(21% 0.014 45);
+      --surface-sunken: oklch(14.5% 0.01 45);
+      --ink: oklch(95% 0.008 70);
+      --ink-muted: oklch(72% 0.015 60);
+      --line: oklch(30% 0.015 45);
+    }
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-surface font-sans text-ink antialiased;
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+
+  /* Respect users who prefer reduced motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

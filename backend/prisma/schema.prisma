@@ -1,0 +1,17 @@
+// Prisma schema — Restaurant Management Portal
+//
+// F01: datasource + generator only. Domain models and the first migration are added in F02.
+// Prisma 7: connection URLs are NOT declared here. They come from prisma.config.ts
+// (migration/shadow, Prisma CLI only) and from the NestJS runtime (DATABASE_URL via @prisma/adapter-pg).
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  runtime             = "nodejs"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}

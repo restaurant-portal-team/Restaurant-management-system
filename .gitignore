@@ -1,0 +1,26 @@
+# Local-only project documentation (kept on disk, never committed)
+/docs/
+
+# Environment files: real credentials stay local. Only *.example files are committed.
+.env
+.env.*
+!*.example
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Prisma generated client
+backend/src/generated/
+
+# Logs and OS/editor noise
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
