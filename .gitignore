@@ -1,5 +1,4 @@
-# Local-only project documentation (kept on disk, never committed)
-/docs/
+
 
 # Environment files: real credentials stay local. Only *.example files are committed.
 .env
@@ -25,5 +24,3 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-
-endpoints.txt

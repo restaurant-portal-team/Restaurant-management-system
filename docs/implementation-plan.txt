@@ -1,0 +1,310 @@
+RESTAURANT MANAGEMENT PORTAL — IMPLEMENTATION PLAN
+Version: 1.0 | Single-restaurant MVP | Stack: React + Vite + TypeScript; NestJS; PostgreSQL + Prisma
+
+SOURCE OF TRUTH
+- This file tracks execution status; project requirements document defines approved business scope.
+- Each phase contains EXACTLY ONE feature. Complete sequentially unless human approves dependency-safe reordering.
+- Allowed status values: PENDING, PROCESSING, COMPLETED.
+- A feature is COMPLETED only after implementation AND required verification; otherwise PROCESSING.
+- Never rewrite completed features without explicit human approval, including necessary integration/security fixes.
+- Every feature requires read-only inspection, written proposal, explicit approval, implementation, testing, documentation, report, STOP.
+- Claimed completion must match code and executed tests; no inferred success.
+- Record actual dates only when known; do not invent them.
+- 7 days is a target, not permission to skip quality/security or mark incomplete features complete.
+
+CROSS-FEATURE BUSINESS RULES
+- Order status: PENDING -> PREPARING -> READY -> SERVED; cancellation rules require explicit approval.
+- Stock deducted ONLY on authorized transition PENDING -> PREPARING; exactly once in atomic DB transaction.
+- Insufficient ingredients block transition and leave order PENDING. Never allow negative inventory.
+- A customer never sees private recipes, ingredient stocks, costs, or staff-only data.
+- Payment status separate from order status: SERVED can remain UNPAID.
+- Low-stock active if stock <= minimum; healthy only if stock > minimum. Stock zero is OUT_OF_STOCK.
+- Single order record in PostgreSQL; role portals show filtered views, not copied orders.
+- Customer ordering mode (guest vs login, QR vs verified table) must be approved before F11.
+- Preserve tasteful motion, responsive layouts, accessibility and reduced-motion preferences.
+
+PHASES / FEATURES
+
+PHASE 01 | FEATURE F01: Repository and application foundations
+STATUS: PENDING
+DEPENDENCIES: None (repository baseline)
+SCOPE: Initialize existing or missing React/Vite/TS frontend, NestJS/TS backend, shared conventions, environment examples, Prisma setup and dev scripts.
+ACCEPTANCE CRITERIA: Both apps start; lint/typecheck/build run; no secrets committed.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 02 | FEATURE F02: Database schema and initial migrations
+STATUS: PENDING
+DEPENDENCIES: F01
+SCOPE: Model users/roles, tables, menu categories/items, ingredients, recipe mappings, orders/items, inventory movements, payments; add constraints, indexes and migrations.
+ACCEPTANCE CRITERIA: Migration applies to local PostgreSQL; relationships/constraints verified; safe migration strategy documented.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 03 | FEATURE F03: Authentication and role-based access
+STATUS: PENDING
+DEPENDENCIES: F01
+SCOPE: Owner bootstrap, secure login/logout, password hashing, session or token strategy, guards and frontend protected routes for OWNER, KITCHEN_STAFF, WAITER, CUSTOMER if authenticated customers are used.
+ACCEPTANCE CRITERIA: Unauthenticated and unauthorized calls rejected; role routing and auth tests pass.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 04 | FEATURE F04: Global UI shell and design system
+STATUS: PENDING
+DEPENDENCIES: F01
+SCOPE: Professional responsive app shell, role-specific sidebar, shared components, typography, accessible theme, subtle purposeful animations, loading/empty/error states.
+ACCEPTANCE CRITERIA: Four role shells render; mobile navigation and reduced-motion support verified; no fake production data.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 05 | FEATURE F05: Owner staff management
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Owner creates kitchen/waiter accounts, assigns role, securely shares setup invitation or approved credential activation, activates/deactivates staff; role immutable by employee.
+ACCEPTANCE CRITERIA: Owner-only CRUD/activation; no plaintext passwords; disabled sessions invalidated or checked.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 06 | FEATURE F06: Restaurant tables management
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Owner manages table identifiers and availability; link dine-in orders to valid tables; table state derived from active orders where feasible.
+ACCEPTANCE CRITERIA: Unique table numbers; inactive tables cannot accept new dine-in orders; accurate occupancy.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 07 | FEATURE F07: Ingredient inventory catalog
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Owner manages ingredients, units (g/ml/pcs), available stock, minimum thresholds and validation; archive instead of unsafe deletion.
+ACCEPTANCE CRITERIA: Ingredient CRUD, stock/min validation, unit consistency, permissions tested.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 08 | FEATURE F08: Inventory restock and adjustments
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Owner records stock-in, waste and corrections with reasons and audit movements; protect against negative stock.
+ACCEPTANCE CRITERIA: Atomic stock updates and movement records; audit trail; concurrent adjustments tested.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 09 | FEATURE F09: Menu categories and dishes
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Owner manages categories and menu items, price, description, availability and optional images; customer menu shows only public fields.
+ACCEPTANCE CRITERIA: Menu CRUD, pricing validation, inactive-item filtering and role permissions verified.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 10 | FEATURE F10: Recipe ingredient mapping
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Owner edits dish recipe using existing ingredients and per-dish quantities; unique dish/ingredient mappings; no recipe exposure to customers.
+ACCEPTANCE CRITERIA: Recipe CRUD/replace, units/positive amounts validated; referential integrity tests.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 11 | FEATURE F11: Customer menu and order placement
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Customer views menu, cart and places dine-in order with verified table or takeaway order; server recalculates totals and snapshots item prices; status PENDING.
+ACCEPTANCE CRITERIA: Valid orders persist with items and amounts; no stock deduction on placement; tampering rejected.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 12 | FEATURE F12: Kitchen incoming orders and accept-to-prepare
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Kitchen sees PENDING orders; authorized Accept & Start Preparing checks recipe stock and deducts once atomically, logs inventory movements, records acceptedBy, transitions to PREPARING.
+ACCEPTANCE CRITERIA: Concurrent accepts cannot double-deduct; insufficient stock leaves PENDING; transaction rollback verified.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 13 | FEATURE F13: Kitchen preparation and ready handoff
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Kitchen sees PREPARING and READY orders; Mark Ready transitions PREPARING->READY with preparedAt; no further stock deduction.
+ACCEPTANCE CRITERIA: Only authorized legal transition; kitchen list updates and history tracked.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 14 | FEATURE F14: Waiter ready-to-serve workflow
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Waiter sees READY orders with table, dishes and instructions; Mark Served transitions READY->SERVED, records servedBy/servedAt; concurrent requests safe.
+ACCEPTANCE CRITERIA: Ready orders disappear from active pickup after serving; wrong transitions rejected.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 15 | FEATURE F15: Order visibility and status tracking
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Owner all-orders, customer own-order status, kitchen/waiter filtered lists and history; 5–10s polling or manual refresh; prevent cross-customer data leakage.
+ACCEPTANCE CRITERIA: One source of truth; status consistent across roles; permissions and refresh verified.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 16 | FEATURE F16: Billing and cash payment
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Owner views order bill and records cash payment, payment status separately from serving status; prevent double payment and calculate totals server-side.
+ACCEPTANCE CRITERIA: SERVED does not imply PAID; paid/unpaid views accurate; duplicate payment blocked.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 17 | FEATURE F17: Automatic low-stock alerts
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Derived current-stock alerts for 0=OUT_OF_STOCK, 0<stock<=minimum=LOW_STOCK, stock>minimum=HEALTHY; owner bell/count and alert list; auto-resolve after restock.
+ACCEPTANCE CRITERIA: Healthy excluded from alerts; exact threshold still low; alert count refreshes.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 18 | FEATURE F18: Owner dashboard and basic analytics
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Today paid sales, total orders, active orders, low-stock count, recent orders, seven-day sales and top dishes; honest metrics from backend.
+ACCEPTANCE CRITERIA: Aggregations accurate; no mock values in production; date/timezone and cancellation rules tested.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 19 | FEATURE F19: Kitchen overview dashboard
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Cards for new/preparing/ready/prepared today plus recent actionable kitchen orders; role-only access.
+ACCEPTANCE CRITERIA: Counters match order queries; actions link to correct lists; refresh verified.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 20 | FEATURE F20: Waiter overview dashboard
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: Cards for ready to serve, active tables, active orders and current waiter served today, plus ready order cards.
+ACCEPTANCE CRITERIA: Counts correct; servedBy filter for personal totals; safe mark-served action.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+PHASE 21 | FEATURE F21: Final integration, quality and handover
+STATUS: PENDING
+DEPENDENCIES: Prior approved foundation and relevant completed modules
+SCOPE: End-to-end journey, security regression, responsive/accessibility polish, README/setup instructions, seed demo, build and test results; optional Docker only if approved.
+ACCEPTANCE CRITERIA: Owner/customer/kitchen/waiter journey verified; outstanding limitations documented; all critical tests pass.
+IMPLEMENTATION SUMMARY: Not started.
+FILES CHANGED: None.
+API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
+TESTS / VERIFICATION: Not run.
+KNOWN LIMITATIONS / BLOCKERS: None recorded.
+HUMAN APPROVAL: Not granted.
+COMMIT RECOMMENDATION: Not yet.
+
+FEATURE CLOSEOUT TEMPLATE (fill within each feature record)
+- Implementation summary: actual behavior and business rules
+- Files created/modified: exact paths
+- API endpoints: references to api-endpoints.txt entries
+- DB migrations: names and verification result
+- Tests: command, result PASS/FAIL/NOT RUN, manual test instructions/outcome
+- Regression checks: affected completed modules
+- Blockers/limitations: unresolved items
+- Status: COMPLETED only after acceptance criteria are verified
+- Commit suggestion: short professional message only; human runs all git commands
