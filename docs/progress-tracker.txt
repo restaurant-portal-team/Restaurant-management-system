@@ -1,0 +1,763 @@
+RESTAURANT MANAGEMENT PORTAL
+IMPLEMENTATION PROGRESS TRACKER
+
+Project: Restaurant Management Portal
+Source of Truth: docs/implementation-plan.txt (scope, statuses, acceptance criteria, history)
+Total Phases: 21
+Last Updated: 2026-11-18
+Current Phase: F03 - Authentication and role-based access (PENDING; proposal and approval required)
+
+LEGEND
+[x] = Implemented and verified as completed
+[ ] = Not verified as completed (pending, in progress, or insufficient evidence)
+Evidence tags: (re-verified YYYY-MM-DD) = check re-run on that date; (historical) = recorded in Git history,
+README.md, docs/api-endpoints.txt or prior approved session records, not re-run since.
+
+OVERALL PROGRESS
+- Completed Phases: 2 / 21 (F01, F02)
+- In Progress: 0
+- Pending Phases: 19 (F03-F21)
+- Verified Tasks: 49 / 322
+- Current Blockers: None blocking F03 start. F03 needs a written proposal, OWASP review and explicit approval.
+  F11 is blocked until the customer ordering mode decision is approved.
+
+===================================================================================================
+
+PHASE F01 - Repository and application foundations
+Status: COMPLETED (2026-11-16; history reconciled 2026-11-18)
+Dependencies: None
+Progress: 27 / 27
+
+Backend:
+[x] NestJS 12 ESM app in backend/, port 3000 (re-verified 2026-11-18: lint, typecheck)
+[x] Global API prefix /api/v1 (re-verified 2026-11-18: e2e prefix test)
+[x] Startup environment validation, src/config/env.validation.ts (re-verified 2026-11-18: unit tests)
+[x] PrismaService/PrismaModule using runtime DATABASE_URL (historical: live health 200 on 2026-11-16)
+[x] GET /api/v1/health with minimal 200/503 contract (re-verified 2026-11-18: unit + e2e)
+[x] Central safe error filter and X-Request-Id handling (re-verified 2026-11-18: unit + e2e)
+
+Frontend:
+[x] React + Vite + TypeScript app in frontend/, port 5173 (re-verified 2026-11-18: lint, typecheck)
+[x] Typed API client and validated env config (re-verified 2026-11-18: env.test.ts)
+[x] Home page "System status" card using /api/v1/health with manual refresh (re-verified 2026-11-18: home-page.test.tsx)
+[x] Not-found route (re-verified 2026-11-18: not-found-page.test.tsx)
+
+Database / Infrastructure:
+[x] Prisma 7.10.1 pinned; prisma.config.ts reads migration env only (re-verified 2026-11-18: prisma validate)
+[x] Two DB roles: restaurant_migrator (owner) and restaurant_app (runtime) (historical; README sections 1 and 6.1)
+[x] backend/.env.example, backend/.env.migrate.example, frontend/.env.example committed; real env files ignored (re-verified 2026-11-18: tracked file list)
+[x] DB safety scripts db:assert-isolation and db:verify-roles (re-verified 2026-11-18: script unit specs)
+
+Security:
+[x] Helmet headers, explicit CORS allowlist without "*", global rate limiting (re-verified 2026-11-18: e2e)
+[x] Global ValidationPipe with whitelist/forbidNonWhitelisted (historical; code present)
+[x] No secrets committed; only *.example env files tracked (re-verified 2026-11-18: git ls-files)
+
+Testing / Verification:
+[x] Backend lint and typecheck pass (re-verified 2026-11-18)
+[x] Frontend lint and typecheck pass (re-verified 2026-11-18)
+[x] Backend unit and e2e tests pass (re-verified 2026-11-18: unit 76/76, e2e 9/9)
+[x] Frontend tests pass (re-verified 2026-11-18: 7/7)
+[x] Backend and frontend builds succeed (historical 2026-11-16; not re-run 2026-11-18)
+[x] Both apps start; live health 200 against local PostgreSQL (historical 2026-11-16; docs/api-endpoints.txt)
+[x] Human browser verification of the status card (historical 2026-11-16; docs/api-endpoints.txt)
+
+Documentation:
+[x] README setup, environment, run and quality-check sections (README sections 1-5)
+[x] GET /api/v1/health recorded in docs/api-endpoints.txt and root endpoints.txt
+
+Human Approval:
+[x] F01 completion approved by human (historical 2026-11-16)
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F02 - Database schema and initial migrations
+Status: COMPLETED (2026-11-16; history reconciled 2026-11-18)
+Dependencies: F01
+Progress: 22 / 22
+
+Database / Infrastructure:
+[x] Prisma schema with 12 models and 6 enums (re-verified 2026-11-18: prisma validate)
+[x] Migration 20261116145432_init_schema: 12 tables, 30 indexes, 19 FKs plus hand-written CHECKs (re-verified 2026-11-18: file inspection)
+[x] Migration 20261116153418_name_key_builtin_lower: only the 3 name_key CHECKs switched to COLLATE "pg_c_utf8" (re-verified 2026-11-18: policy spec)
+[x] Both migrations deployed to restaurant_dev, checksums verified (historical: Gates B/B2; live state not re-verified 2026-11-18)
+[x] Shadow-only config prisma.shadow-check.config.ts for restaurant-dev-shadow (re-verified 2026-11-18: config spec)
+
+Backend:
+[x] normalizeName() and pgSimpleLower() compute name_key in the app (re-verified 2026-11-18: unit tests)
+[x] Generated PostgreSQL 17 case table and generator script (re-verified 2026-11-18: pg-simple-lower.spec.ts)
+
+Security:
+[x] Q1: case-insensitive unique names via name_key, CHECK and unique indexes (historical: Gate C2)
+[x] Q2: active users require password_hash and activated_at (historical: Gate C2)
+[x] D1: restaurant_app has no DML on _prisma_migrations (human-executed; historical: Gate D)
+[x] D2: TEMPORARY on restaurant_dev revoked from PUBLIC (human-executed; historical: Gate D)
+[x] E1: inventory_movements is append-only for restaurant_app (human-executed; historical: Gate E)
+[x] E2: restaurant_app cannot DELETE payments (human-executed; historical: Gate E)
+
+Testing / Verification:
+[x] Migration policy tests pass, scripts/db/migration-sql.spec.ts (re-verified 2026-11-18)
+[x] Gate A/A2 shadow dry run shows zero drift (historical 2026-11-16)
+[x] Gate C2 behavioural and Unicode DB tests 31/31, full-range mismatches 0 (historical 2026-11-16)
+[x] Gate D verification 37/37 (historical 2026-11-16)
+[x] Gate E `npm run test:db` 40/40 (historical 2026-11-16; not re-run 2026-11-18)
+
+Documentation:
+[x] README section 6: roles, migration policy, prohibited commands, gate sequence, D1-E2 runbook, default-privileges risk
+[x] Approved deviation (shadow dry run via `prisma migrate diff`, not `migrate dev`) documented in README section 6.4
+
+Human Approval:
+[x] Gates A, B, C, D and E each approved separately (historical 2026-11-16)
+[x] F02 completion approved after closure review (historical 2026-11-16)
+
+Deferred follow-ups (approved deferrals; not counted in F02 progress):
+- S1 post-migration default-privileges guard (README section 6.8) - not implemented
+- Full audit-table immutability - not implemented
+- NFC name normalization - decision deferred to F07/F09
+- PostgreSQL major-version upgrade procedure - not written
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F03 - Authentication and role-based access
+Status: PENDING
+Dependencies: F01 (uses F02 users table)
+Progress: 0 / 22
+
+Backend:
+[ ] Owner bootstrap mechanism with no default or hard-coded credentials
+[ ] Password hashing with an approved algorithm; no plaintext storage or logging
+[ ] POST /api/v1/auth/login
+[ ] POST /api/v1/auth/logout
+[ ] GET /api/v1/auth/me
+[ ] Authentication guard rejects unauthenticated calls (401)
+[ ] Role guard for OWNER, KITCHEN_STAFF, WAITER (and CUSTOMER if approved) rejects unauthorized calls (403)
+[ ] Inactive users cannot log in
+
+Frontend:
+[ ] Login page with validation and error states
+[ ] Auth state handling and logout
+[ ] Protected routes with role-based redirects
+
+Security:
+[ ] Login brute-force protection (rate limiting)
+[ ] Generic login errors with no user enumeration
+[ ] Secure session/token settings (HttpOnly, SameSite, CSRF handling as approved)
+
+Testing / Verification:
+[ ] Unit tests for the auth service and guards
+[ ] e2e 401/403 permission matrix per role
+[ ] Frontend route-guard tests
+
+Documentation:
+[ ] Auth endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Plan closeout with OWASP review and test results in docs/implementation-plan.txt
+
+Human Approval:
+[ ] Session vs token strategy and customer-account decision approved
+[ ] Proposal with SECURITY IMPACT & OWASP REVIEW approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F04 - Global UI shell and design system
+Status: PENDING
+Dependencies: F01
+Progress: 0 / 15
+
+Frontend:
+[ ] Responsive app shell layout
+[ ] Role-specific sidebars for OWNER, KITCHEN_STAFF, WAITER and CUSTOMER
+[ ] Mobile navigation
+[ ] Shared components (buttons, cards, form fields, tables, dialogs)
+[ ] Typography and accessible color theme with sufficient contrast
+[ ] Loading, empty and error state components
+[ ] Subtle animations that respect prefers-reduced-motion
+
+Security:
+[ ] No fake production data in shells or components
+
+Testing / Verification:
+[ ] Tests: all four role shells render
+[ ] Tests: mobile navigation and reduced-motion behaviour
+[ ] Keyboard navigation and accessibility checks
+
+Documentation:
+[ ] UI conventions and component usage documented
+[ ] Plan closeout in docs/implementation-plan.txt
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F05 - Owner staff management
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F03)
+Progress: 0 / 20
+
+Backend:
+[ ] GET /api/v1/staff (owner only)
+[ ] POST /api/v1/staff creates a kitchen or waiter account with an assigned role
+[ ] PATCH /api/v1/staff/:id
+[ ] Activate and deactivate staff endpoints
+[ ] Setup invitation/activation using hashed, expiring, single-use StaffSetupToken
+[ ] Employees cannot change their own role
+
+Frontend:
+[ ] Staff list page
+[ ] Create/edit staff form with validation
+[ ] Activate/deactivate actions with confirmation
+
+Security:
+[ ] Owner-only enforcement on the server
+[ ] No plaintext passwords stored, returned or logged
+[ ] Deactivated users' sessions invalidated or checked on every request
+
+Testing / Verification:
+[ ] e2e owner-only permission matrix
+[ ] Deactivation blocks access
+[ ] Setup token expiry and reuse rejected
+
+Documentation:
+[ ] Staff endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Plan closeout with OWASP review and test results
+
+Human Approval:
+[ ] Staff invitation/activation flow decision approved
+[ ] Proposal with SECURITY IMPACT & OWASP REVIEW approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F06 - Restaurant tables management
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F03)
+Progress: 0 / 14
+
+Backend:
+[ ] GET, POST and PATCH /api/v1/tables
+[ ] Unique table numbers enforced
+[ ] Table activation/deactivation
+[ ] Occupancy derived from active orders where feasible
+
+Frontend:
+[ ] Owner tables management page
+[ ] Availability and occupancy display
+
+Security:
+[ ] Owner-only write access
+
+Testing / Verification:
+[ ] Duplicate table numbers rejected
+[ ] Inactive tables cannot accept new dine-in orders
+[ ] Occupancy accuracy tests
+
+Documentation:
+[ ] Table endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Plan closeout with OWASP review and test results
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F07 - Ingredient inventory catalog
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F03)
+Progress: 0 / 17
+
+Backend:
+[ ] GET, POST and PATCH /api/v1/ingredients
+[ ] Units limited to g, ml and pcs
+[ ] Stock and minimum threshold validation (non-negative)
+[ ] Archive instead of unsafe deletion
+[ ] Case-insensitive unique names via name_key (pgSimpleLower)
+
+Frontend:
+[ ] Ingredient list with create/edit forms
+[ ] Archive action
+
+Security:
+[ ] Owner-only access
+[ ] Ingredient and stock data never exposed to customers
+
+Testing / Verification:
+[ ] CRUD and validation tests
+[ ] Unit consistency tests
+[ ] Permission tests
+
+Documentation:
+[ ] Ingredient endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Plan closeout with OWASP review and test results
+
+Human Approval:
+[ ] NFC name-normalization decision (deferred from F02)
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F08 - Inventory restock and adjustments
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F07)
+Progress: 0 / 15
+
+Backend:
+[ ] POST /api/v1/inventory/adjustments for stock-in, waste and correction, with a mandatory reason
+[ ] GET /api/v1/inventory/movements
+[ ] Stock update and movement record in one atomic transaction
+[ ] Negative stock rejected
+
+Frontend:
+[ ] Restock/adjustment form
+[ ] Movement history view
+
+Security:
+[ ] Owner-only access
+[ ] inventory_movements stays append-only (consistent with E1)
+
+Testing / Verification:
+[ ] Concurrent adjustment tests
+[ ] Negative-stock prevention tests
+[ ] Audit trail completeness tests
+
+Documentation:
+[ ] Inventory endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Plan closeout with OWASP review and test results
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F09 - Menu categories and dishes
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F03)
+Progress: 0 / 18
+
+Backend:
+[ ] Menu category endpoints (GET/POST /api/v1/menu/categories and update)
+[ ] Menu item endpoints (GET/POST/PATCH /api/v1/menu-items)
+[ ] Price validation (positive, money precision)
+[ ] Availability toggle
+[ ] Optional image handling (only if approved)
+[ ] Public customer menu returns only public fields and excludes inactive items
+
+Frontend:
+[ ] Owner category and dish management pages
+[ ] Availability toggle UI
+
+Security:
+[ ] Owner-only writes
+[ ] No recipe, cost or stock leakage in public responses
+[ ] Image upload type/size validation (if images are approved)
+
+Testing / Verification:
+[ ] CRUD and pricing validation tests
+[ ] Inactive-item filtering tests
+[ ] Role permission tests
+
+Documentation:
+[ ] Menu endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Plan closeout with OWASP review and test results
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F10 - Recipe ingredient mapping
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F07, F09)
+Progress: 0 / 14
+
+Backend:
+[ ] GET /api/v1/menu-items/:id/recipe
+[ ] PUT /api/v1/menu-items/:id/recipe replaces the recipe atomically
+[ ] Only existing, non-archived ingredients allowed
+[ ] Positive quantities with unit consistency
+[ ] Unique dish/ingredient mappings
+
+Frontend:
+[ ] Recipe editor on the dish page
+
+Security:
+[ ] Owner-only access
+[ ] Recipes never exposed to customers
+
+Testing / Verification:
+[ ] Atomic replace tests
+[ ] Validation tests
+[ ] Referential integrity tests
+
+Documentation:
+[ ] Recipe endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F11 - Customer menu and order placement
+Status: PENDING (BLOCKED until the customer ordering mode is approved)
+Dependencies: Prior approved foundation and relevant completed modules (F06, F09)
+Progress: 0 / 18
+
+Backend:
+[ ] POST /api/v1/orders creates an order with status PENDING
+[ ] Dine-in requires a verified active table; takeaway supported
+[ ] Server recalculates totals
+[ ] Item prices snapshotted on the order
+[ ] No stock deduction on placement
+
+Frontend:
+[ ] Customer menu page
+[ ] Cart
+[ ] Order placement and confirmation
+
+Security:
+[ ] Client-sent price/total tampering rejected
+[ ] Rate limiting on order creation
+[ ] Unavailable or inactive items rejected
+
+Testing / Verification:
+[ ] Valid orders persist with items and amounts
+[ ] Tampering tests
+[ ] Stock unchanged after placement
+
+Documentation:
+[ ] Order endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+
+Human Approval:
+[ ] Customer ordering mode decision (guest vs login, QR vs verified table)
+[ ] Proposal with SECURITY IMPACT & OWASP REVIEW approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F12 - Kitchen incoming orders and accept-to-prepare
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F08, F10, F11)
+Progress: 0 / 15
+
+Backend:
+[ ] GET /api/v1/kitchen/orders lists PENDING orders
+[ ] POST /api/v1/orders/:id/start-preparing (PENDING -> PREPARING)
+[ ] Recipe stock check before transition
+[ ] Stock deducted exactly once in an atomic transaction, with inventory movements
+[ ] acceptedBy recorded
+[ ] Insufficient stock leaves the order PENDING
+
+Frontend:
+[ ] Kitchen incoming orders list
+[ ] Accept & Start Preparing action with error feedback
+
+Security:
+[ ] Only authorized kitchen roles may transition
+[ ] Inventory can never go negative
+
+Testing / Verification:
+[ ] Concurrent accepts cannot double-deduct
+[ ] Insufficient-stock tests
+[ ] Transaction rollback tests
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F13 - Kitchen preparation and ready handoff
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F12)
+Progress: 0 / 11
+
+Backend:
+[ ] Kitchen PREPARING and READY order lists
+[ ] POST /api/v1/orders/:id/mark-ready (PREPARING -> READY) with preparedAt
+[ ] No further stock deduction
+[ ] Status history recorded
+
+Frontend:
+[ ] Preparing/Ready views with Mark Ready action
+
+Security:
+[ ] Only authorized role and legal transition accepted
+
+Testing / Verification:
+[ ] Illegal transitions rejected
+[ ] Stock unchanged on Mark Ready
+[ ] Kitchen list updates after transition
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F14 - Waiter ready-to-serve workflow
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F13)
+Progress: 0 / 11
+
+Backend:
+[ ] GET /api/v1/waiter/ready-orders with table, dishes and instructions
+[ ] POST /api/v1/orders/:id/mark-served (READY -> SERVED) with servedBy and servedAt
+[ ] Concurrent mark-served requests are safe
+
+Frontend:
+[ ] Waiter ready-orders list with Mark Served action
+[ ] Served orders disappear from active pickup
+
+Security:
+[ ] WAITER-only access
+
+Testing / Verification:
+[ ] Wrong transitions rejected
+[ ] Concurrent mark-served tests
+[ ] Served orders removed from the ready list
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F15 - Order visibility and status tracking
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F11-F14)
+Progress: 0 / 15
+
+Backend:
+[ ] GET /api/v1/orders with role-based filtering
+[ ] GET /api/v1/orders/:id with ownership checks
+[ ] Customer own-order status (secure guest lookup if guests are approved)
+
+Frontend:
+[ ] Owner all-orders view
+[ ] Customer order status view
+[ ] Kitchen/waiter filtered lists and history
+[ ] 5-10s polling plus manual refresh
+
+Security:
+[ ] No cross-customer data leakage (object-level authorization)
+
+Testing / Verification:
+[ ] Status consistent across roles (single source of truth)
+[ ] Permission tests
+[ ] Refresh behaviour tests
+
+Documentation:
+[ ] Pagination and filter conventions recorded in docs/api-endpoints.txt
+
+Human Approval:
+[ ] Pagination/filtering decision approved
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F16 - Billing and cash payment
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F14)
+Progress: 0 / 15
+
+Backend:
+[ ] GET /api/v1/orders/:id/bill with server-side totals
+[ ] POST /api/v1/orders/:id/payments records a cash payment
+[ ] Payment status kept separate from order status
+[ ] Duplicate payment blocked
+
+Frontend:
+[ ] Bill view
+[ ] Record cash payment action
+[ ] Paid/unpaid order views
+
+Security:
+[ ] Owner-only payment recording
+[ ] Payments cannot be deleted (consistent with E2)
+
+Testing / Verification:
+[ ] SERVED does not imply PAID
+[ ] Duplicate payment tests
+[ ] Total calculation accuracy tests
+
+Human Approval:
+[ ] Cancellation/refund policy decision (if it affects billing)
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F17 - Automatic low-stock alerts
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F07, F08)
+Progress: 0 / 11
+
+Backend:
+[ ] GET /api/v1/inventory/low-stock derives alerts from current stock
+[ ] Classification: 0 = OUT_OF_STOCK, 0 < stock <= minimum = LOW_STOCK, stock > minimum = HEALTHY (excluded)
+[ ] Alerts auto-resolve after restock
+
+Frontend:
+[ ] Owner notification bell with count
+[ ] Alert list
+[ ] Alert count refreshes
+
+Security:
+[ ] Owner-only access
+
+Testing / Verification:
+[ ] Stock exactly at the minimum is still LOW_STOCK
+[ ] HEALTHY items excluded from alerts
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F18 - Owner dashboard and basic analytics
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F15-F17)
+Progress: 0 / 11
+
+Backend:
+[ ] GET /api/v1/dashboard/owner: today's paid sales, total orders, active orders, low-stock count
+[ ] Recent orders, seven-day sales and top dishes aggregations
+
+Frontend:
+[ ] Dashboard cards and charts using only backend data
+
+Security:
+[ ] Owner-only access
+
+Testing / Verification:
+[ ] Aggregation accuracy tests
+[ ] Date/timezone tests
+[ ] Cancellation rule tests
+[ ] No mock values in production
+
+Human Approval:
+[ ] Timezone and cancellation metric rules approved
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F19 - Kitchen overview dashboard
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F12, F13)
+Progress: 0 / 9
+
+Backend:
+[ ] GET /api/v1/dashboard/kitchen: new, preparing, ready and prepared-today counts plus recent actionable orders
+
+Frontend:
+[ ] Kitchen cards linking to the correct lists
+[ ] Refresh behaviour
+
+Security:
+[ ] Kitchen-role-only access
+
+Testing / Verification:
+[ ] Counters match the order queries
+[ ] Card actions link to the correct lists
+[ ] Refresh verified
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F20 - Waiter overview dashboard
+Status: PENDING
+Dependencies: Prior approved foundation and relevant completed modules (F14)
+Progress: 0 / 9
+
+Backend:
+[ ] GET /api/v1/dashboard/waiter: ready to serve, active tables, active orders, served today by the current waiter
+
+Frontend:
+[ ] Waiter cards and ready-order cards
+[ ] Safe mark-served action from the dashboard
+
+Security:
+[ ] Personal totals scoped by servedBy to the current waiter
+
+Testing / Verification:
+[ ] Count accuracy tests
+[ ] servedBy filter tests
+[ ] Mark-served from the dashboard rejects wrong transitions
+
+Human Approval:
+[ ] Proposal approved
+[ ] Completion approved after verification
+
+---------------------------------------------------------------------------------------------------
+
+PHASE F21 - Final integration, quality and handover
+Status: PENDING
+Dependencies: All previous phases
+Progress: 0 / 13
+
+Database / Infrastructure:
+[ ] Dev-only demo seed data (no real credentials)
+[ ] Deferred F02 follow-ups resolved or documented as accepted limitations
+
+Frontend:
+[ ] Responsive and accessibility polish verified across all role portals
+
+Security:
+[ ] Security regression against OWASP Top 10 and OWASP API Security Top 10
+
+Testing / Verification:
+[ ] End-to-end owner, customer, kitchen and waiter journey verified
+[ ] All lint, typecheck, build and test suites pass (including test:db)
+[ ] All critical tests pass
+
+Documentation:
+[ ] README setup and handover instructions complete
+[ ] Outstanding limitations documented
+[ ] Final build and test results recorded in docs/implementation-plan.txt
+[ ] docs/api-endpoints.txt and root endpoints.txt match the implemented API
+
+Human Approval:
+[ ] Proposal approved
+[ ] Final handover approved
+
+===================================================================================================
+
+VERIFICATION GAPS (recorded 2026-11-18)
+- The original detailed F01/F02 records were in a Git-ignored version of docs/implementation-plan.txt and are
+  NOT recoverable. The F01/F02 records were rebuilt from code, Git history, README.md, docs/api-endpoints.txt and
+  historical session records (reconciliation approved by the human on 2026-11-18).
+- Not re-run on 2026-11-18: backend/frontend build, app start, live health against PostgreSQL,
+  `npm run test:db`, `npm run db:migrate:status`, `npm run db:verify-roles`. These items rely on historical evidence.
+
+KNOWN DOCUMENTATION INCONSISTENCIES (not fixed; separate approval needed)
+- README.md section 8 says .gitignore excludes /docs/; docs/ is Git-tracked again since commit 2c7cc10.
+- README.md section 7 describes docs/api-endpoints.txt as "local only"; it is now Git-tracked.
+
+OPEN DECISIONS (from the plan and docs/api-endpoints.txt)
+- Session vs token auth strategy and whether customer accounts exist (F03)
+- Staff setup invitation flow (F05)
+- NFC name normalization (F07/F09)
+- Customer ordering mode: guest vs login, QR vs verified table (before F11)
+- Order cancellation and refund policy
+- Requirements section 13 path/method differences vs the draft API inventory (resolve per feature)
+
+MAINTENANCE RULES
+- After every approved and verified step: update the affected checkboxes, phase progress, overall totals and
+  Last Updated, and keep docs/implementation-plan.txt consistent.
+- Never check a box without implementation evidence and executed verification. Never reset verified items
+  without reporting a regression and getting human approval.
+- Edit only the phases affected by the step, to reduce merge conflicts between developers.
+- No passwords, API keys, tokens, database credentials or other secrets in this file.
+- Git operations are performed by the human developer only.

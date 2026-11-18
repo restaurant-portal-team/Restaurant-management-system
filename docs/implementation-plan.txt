@@ -26,30 +26,61 @@ CROSS-FEATURE BUSINESS RULES
 PHASES / FEATURES
 
 PHASE 01 | FEATURE F01: Repository and application foundations
-STATUS: PENDING
+STATUS: COMPLETED
 DEPENDENCIES: None (repository baseline)
 SCOPE: Initialize existing or missing React/Vite/TS frontend, NestJS/TS backend, shared conventions, environment examples, Prisma setup and dev scripts.
 ACCEPTANCE CRITERIA: Both apps start; lint/typecheck/build run; no secrets committed.
-IMPLEMENTATION SUMMARY: Not started.
-FILES CHANGED: None.
-API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
-TESTS / VERIFICATION: Not run.
-KNOWN LIMITATIONS / BLOCKERS: None recorded.
-HUMAN APPROVAL: Not granted.
-COMMIT RECOMMENDATION: Not yet.
+RECONCILIATION NOTE (2026-11-18, human-approved): The original detailed F01 record was kept in a Git-ignored
+  version of this file and is NOT recoverable. The record below is rebuilt only from the code, Git history,
+  README.md, docs/api-endpoints.txt, historical session records and checks re-run on 2026-11-18.
+IMPLEMENTATION SUMMARY: React + Vite + TS frontend (TanStack Query, router, system-status page); NestJS 12 ESM
+  backend on port 3000, prefix /api/v1, env validation, Helmet, CORS allowlist, global ValidationPipe, rate limiting,
+  request IDs, safe global error filter, PrismaService (Prisma 7.10.1 pinned, adapter-pg); ESLint 10 +
+  typescript-eslint strictTypeChecked, TypeScript ~6.0.3, Vitest/Supertest. Two DB roles (restaurant_migrator owner,
+  restaurant_app runtime) with separate backend/.env and backend/.env.migrate; only *.example files committed.
+FILES CHANGED: Commit 3789d3a (74 files; see `git show --stat 3789d3a`).
+API ENDPOINTS: GET /api/v1/health - IMPLEMENTED (docs/api-endpoints.txt; endpoints.txt).
+TESTS / VERIFICATION:
+  - Historical (2026-11-16, recorded in docs/api-endpoints.txt and session records): apps started; lint/typecheck/
+    build passed; live health 200 with local PostgreSQL via restaurant_app, 503 with unreachable DB; human browser check.
+  - Re-verified 2026-11-18 (reconciliation): backend lint PASS, typecheck PASS, unit 76/76 PASS, e2e 9/9 PASS;
+    frontend lint PASS, typecheck PASS, tests 7/7 PASS; prisma validate PASS.
+  - NOT re-run 2026-11-18: build, app start, live health against PostgreSQL.
+KNOWN LIMITATIONS / BLOCKERS: Detailed original F01 log was Git-ignored and is NOT recoverable. Production
+  readiness/diagnostic access controls remain a human decision.
+HUMAN APPROVAL: Granted 2026-11-16 (historical record). History reconciled with human approval 2026-11-18.
+COMMIT RECOMMENDATION: Committed as 3789d3a.
 
 PHASE 02 | FEATURE F02: Database schema and initial migrations
-STATUS: PENDING
+STATUS: COMPLETED
 DEPENDENCIES: F01
 SCOPE: Model users/roles, tables, menu categories/items, ingredients, recipe mappings, orders/items, inventory movements, payments; add constraints, indexes and migrations.
 ACCEPTANCE CRITERIA: Migration applies to local PostgreSQL; relationships/constraints verified; safe migration strategy documented.
-IMPLEMENTATION SUMMARY: Not started.
-FILES CHANGED: None.
-API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
-TESTS / VERIFICATION: Not run.
-KNOWN LIMITATIONS / BLOCKERS: None recorded.
-HUMAN APPROVAL: Not granted.
-COMMIT RECOMMENDATION: Not yet.
+RECONCILIATION NOTE (2026-11-18, human-approved): The original detailed F02 record (gate logs, command outputs,
+  proposal and OWASP review text) was kept in a Git-ignored version of this file and is NOT recoverable. The record
+  below is rebuilt only from the code, Git history, README.md section 6, historical session records and checks
+  re-run on 2026-11-18.
+IMPLEMENTATION SUMMARY: 12-table Prisma schema (users, staff setup tokens, tables, menu categories/items,
+  ingredients, recipe mappings, orders, order items, order ingredient requirements, inventory movements, payments);
+  hand-written CHECKs, unique/FK/indexes; case-insensitive name_key (Q1) using PostgreSQL 17 builtin lower
+  (COLLATE "pg_c_utf8") with matching app-side case table (Q1b); active users require password_hash/activated_at (Q2).
+  Migration policy enforced by scripts/db/migration-sql.spec.ts. DB: local Windows PostgreSQL 17, 127.0.0.1:5432,
+  restaurant_dev + restaurant-dev-shadow; migrator/runtime role separation (README section 6).
+DB MIGRATIONS: 20261116145432_init_schema; 20261116153418_name_key_builtin_lower (replaces 3 name_key CHECKs only).
+FILES CHANGED: Commits 6857d00, 5328fdc, 22d9135.
+API ENDPOINTS: None.
+TESTS / VERIFICATION:
+  - Historical (2026-11-16, session records): Gate A/A2 shadow diff zero drift; Gate B/B2 deploy, checksums
+    verified; Gate C2 31/31, full-range Unicode mismatches 0; Gate D 37/37; Gate E `npm run test:db` 40/40
+    (runtime 35 + migrator 5). Human executed ACL changes D1, D2, E1, E2 in pgAdmin.
+  - Re-verified 2026-11-18: offline migration-policy and Unicode tests PASS (within backend unit 76/76);
+    prisma validate PASS; init migration contains 12 tables, 30 indexes, 19 FKs.
+  - NOT re-verified 2026-11-18: test:db, db:migrate:status, db:verify-roles (live DB).
+KNOWN LIMITATIONS / BLOCKERS: Approved deviation - shadow dry run via `prisma migrate diff`, not `migrate dev`.
+  Deferred: S1 post-migration default-privileges guard; full audit immutability; NFC normalization (F07/F09);
+  PostgreSQL upgrade procedure. Detailed original gate logs NOT recoverable.
+HUMAN APPROVAL: Granted 2026-11-16 after closure review (historical record). History reconciled with human approval 2026-11-18.
+COMMIT RECOMMENDATION: Committed as 6857d00, 5328fdc, 22d9135.
 
 PHASE 03 | FEATURE F03: Authentication and role-based access
 STATUS: PENDING
