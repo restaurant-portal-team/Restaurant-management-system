@@ -64,7 +64,7 @@ Testing / Verification:
 
 Documentation:
 [x] README setup, environment, run and quality-check sections (README sections 1-5)
-[x] GET /api/v1/health recorded in docs/api-endpoints.txt and root endpoints.txt
+[x] GET /api/v1/health recorded in docs/api-endpoints.txt and docs/endpoints.txt
 
 Human Approval:
 [x] F01 completion approved by human (historical 2026-11-16)
@@ -130,7 +130,7 @@ Backend:
 [ ] POST /api/v1/auth/logout
 [ ] GET /api/v1/auth/me
 [ ] Authentication guard rejects unauthenticated calls (401)
-[ ] Role guard for OWNER, KITCHEN_STAFF, WAITER (and CUSTOMER if approved) rejects unauthorized calls (403)
+[ ] Role guard for OWNER, KITCHEN_STAFF, WAITER rejects unauthorized calls (403) (customers are guests, decision A2)
 [ ] Inactive users cannot log in
 
 Frontend:
@@ -149,11 +149,11 @@ Testing / Verification:
 [ ] Frontend route-guard tests
 
 Documentation:
-[ ] Auth endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Auth endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
 [ ] Plan closeout with OWASP review and test results in docs/implementation-plan.txt
 
 Human Approval:
-[ ] Session vs token strategy and customer-account decision approved
+[ ] Session vs token strategy approved (no customer accounts; decision A2)
 [ ] Proposal with SECURITY IMPACT & OWASP REVIEW approved
 [ ] Completion approved after verification
 
@@ -220,7 +220,7 @@ Testing / Verification:
 [ ] Setup token expiry and reuse rejected
 
 Documentation:
-[ ] Staff endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Staff endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
 [ ] Plan closeout with OWASP review and test results
 
 Human Approval:
@@ -254,7 +254,7 @@ Testing / Verification:
 [ ] Occupancy accuracy tests
 
 Documentation:
-[ ] Table endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Table endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
 [ ] Plan closeout with OWASP review and test results
 
 Human Approval:
@@ -289,7 +289,7 @@ Testing / Verification:
 [ ] Permission tests
 
 Documentation:
-[ ] Ingredient endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Ingredient endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
 [ ] Plan closeout with OWASP review and test results
 
 Human Approval:
@@ -324,7 +324,7 @@ Testing / Verification:
 [ ] Audit trail completeness tests
 
 Documentation:
-[ ] Inventory endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Inventory endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
 [ ] Plan closeout with OWASP review and test results
 
 Human Approval:
@@ -361,7 +361,7 @@ Testing / Verification:
 [ ] Role permission tests
 
 Documentation:
-[ ] Menu endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Menu endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
 [ ] Plan closeout with OWASP review and test results
 
 Human Approval:
@@ -395,7 +395,7 @@ Testing / Verification:
 [ ] Referential integrity tests
 
 Documentation:
-[ ] Recipe endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Recipe endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
 
 Human Approval:
 [ ] Proposal approved
@@ -431,10 +431,10 @@ Testing / Verification:
 [ ] Stock unchanged after placement
 
 Documentation:
-[ ] Order endpoints recorded in docs/api-endpoints.txt and root endpoints.txt
+[ ] Order endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
 
 Human Approval:
-[ ] Customer ordering mode decision (guest vs login, QR vs verified table)
+[ ] Guest ordering mode decision (QR/table token vs verified table)
 [ ] Proposal with SECURITY IMPACT & OWASP REVIEW approved
 [ ] Completion approved after verification
 
@@ -536,7 +536,7 @@ Progress: 0 / 15
 Backend:
 [ ] GET /api/v1/orders with role-based filtering
 [ ] GET /api/v1/orders/:id with ownership checks
-[ ] Customer own-order status (secure guest lookup if guests are approved)
+[ ] Customer own-order status (secure guest lookup; decision A2)
 
 Frontend:
 [ ] Owner all-orders view
@@ -726,7 +726,7 @@ Documentation:
 [ ] README setup and handover instructions complete
 [ ] Outstanding limitations documented
 [ ] Final build and test results recorded in docs/implementation-plan.txt
-[ ] docs/api-endpoints.txt and root endpoints.txt match the implemented API
+[ ] docs/api-endpoints.txt and docs/endpoints.txt match the implemented API
 
 Human Approval:
 [ ] Proposal approved
@@ -741,15 +741,17 @@ VERIFICATION GAPS (recorded 2026-11-18)
 - Not re-run on 2026-11-18: backend/frontend build, app start, live health against PostgreSQL,
   `npm run test:db`, `npm run db:migrate:status`, `npm run db:verify-roles`. These items rely on historical evidence.
 
-KNOWN DOCUMENTATION INCONSISTENCIES (not fixed; separate approval needed)
-- README.md section 8 says .gitignore excludes /docs/; docs/ is Git-tracked again since commit 2c7cc10.
-- README.md section 7 describes docs/api-endpoints.txt as "local only"; it is now Git-tracked.
+RESOLVED DOCUMENTATION INCONSISTENCIES
+- [RESOLVED 2026-11-19] README.md section 8 no longer says .gitignore excludes /docs/; it states docs/ and
+  CLAUDE.md are Git-tracked (Git-tracked again since commit 2c7cc10).
+- [RESOLVED 2026-11-19] README.md section 7 no longer says "local only"; it states docs/api-endpoints.txt and
+  docs/endpoints.txt are Git-tracked.
 
 OPEN DECISIONS (from the plan and docs/api-endpoints.txt)
-- Session vs token auth strategy and whether customer accounts exist (F03)
+- Session vs token auth strategy for staff (F03); customers are guests (decision A2)
 - Staff setup invitation flow (F05)
 - NFC name normalization (F07/F09)
-- Customer ordering mode: guest vs login, QR vs verified table (before F11)
+- Guest ordering mode: QR/table token vs verified table (before F11)
 - Order cancellation and refund policy
 - Requirements section 13 path/method differences vs the draft API inventory (resolve per feature)
 

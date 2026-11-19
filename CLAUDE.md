@@ -101,7 +101,7 @@ Do not assume that implementing these controls guarantees complete OWASP complia
 ## 2. Authentication and Authorization
 
 - Enforce authentication and authorization on the NestJS backend.
-- Implement role-based access control (RBAC) for Owner, Kitchen Staff, Waiter, and Customer.
+- Implement role-based access control (RBAC) for the authenticated staff roles Owner, Kitchen Staff, and Waiter. Customers are unauthenticated guests (decision A2): no CUSTOMER role, login, registration, password, or JWT.
 - Apply the principle of least privilege.
 - Deny access by default unless explicitly authorized.
 - Never rely on hidden frontend buttons or routes as security controls.
@@ -294,7 +294,7 @@ You are authorized to perform only approved application development activities, 
 - React + TypeScript frontend development.
 - NestJS + TypeScript backend development.
 - PostgreSQL and Prisma development configuration.
-- Local PostgreSQL setup using Docker Compose.
+- Local PostgreSQL 17 development usage (Windows PostgreSQL service; Docker Compose is not used for the local database).
 - Application feature implementation.
 - Local testing, debugging, linting, and builds.
 - Application security implementation following OWASP principles.
@@ -324,7 +324,7 @@ Do not create, modify, or execute deployment-related files, scripts, infrastruct
 
 ## Local Development Exception
 
-You may configure and run PostgreSQL locally through Docker Compose for development purposes only.
+Local development uses PostgreSQL 17 installed directly on Windows and running as the Windows PostgreSQL service, administered by the human developer through pgAdmin. Docker Compose is not used for the local database. You may use this existing local instance through the approved environment configuration (separate runtime and migration roles) for development and testing purposes only. Do not install, uninstall, start, stop, or reconfigure PostgreSQL without explicit human approval.
 
 This exception does not authorize application containerization or deployment.
 
@@ -374,7 +374,7 @@ These boundaries apply to every current and future Claude session, regardless of
 
 ### Mandatory API Endpoint Tracking Rule
 
-Whenever you implement a new backend API endpoint, you MUST immediately add its HTTP method and complete route path to the `endpoints.txt` file located in the project root.
+Whenever you implement a new backend API endpoint, you MUST immediately add its HTTP method and complete route path to `docs/endpoints.txt`, the single authoritative endpoint tracking file. Read `docs/endpoints.txt` before working on APIs. Never create a root-level `endpoints.txt`.
 
 **Required format:**
 ```text
@@ -394,8 +394,9 @@ DELETE /api/v1/orders/:id
 - Never add duplicate entries.
 - Whenever an endpoint's method or path changes, update its existing entry.
 - Whenever an endpoint is removed, remove its entry.
-- Keep `endpoints.txt` synchronized with the actual backend routes.
-- If `endpoints.txt` does not exist, create it in the project root.
+- Never remove or rewrite unrelated endpoint entries.
+- Keep `docs/endpoints.txt` synchronized with the actual backend routes.
+- If `docs/endpoints.txt` does not exist, create it in `docs/` (never in the project root).
 - This rule is mandatory for every future backend API implementation task.
 
 

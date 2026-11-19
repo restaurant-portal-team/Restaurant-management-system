@@ -14,7 +14,7 @@ Single-restaurant management web app with role-specific workspaces (Owner, Kitch
 .
 ├── frontend/   React app (port 5173)
 ├── backend/    NestJS API (port 3000, prefix /api/v1) + Prisma
-└── docs/       Local-only planning docs (Git-ignored)
+└── docs/       Planning docs, progress tracker and endpoint list (Git-tracked)
 ```
 
 > Scope note: this repository covers application development and local testing only.
@@ -227,7 +227,7 @@ GRANT DELETE ON TABLE public.payments TO restaurant_app;
 
 ## 7. API
 
-All endpoints are served under `/api/v1`. The contract register lives in `docs/api-endpoints.txt` (local only).
+All endpoints are served under `/api/v1`. The contract register lives in `docs/api-endpoints.txt`; the one-line-per-route list lives in `docs/endpoints.txt`. Both are Git-tracked.
 
 - `GET /api/v1/health` — public, minimal: `{ "status": "ok"|"error", "database": "up"|"down", "timestamp" }`, `200` or `503`, `Cache-Control: no-store`. It intentionally exposes no versions, hosts or error details. Production readiness/diagnostic checks may require separate access controls.
 
@@ -235,9 +235,10 @@ Security baseline: Helmet headers, explicit CORS allowlist (no `*`), global Vali
 
 ## 8. Git hygiene
 
-Git operations are performed by the developer. `.gitignore` excludes `/docs/`, all `.env*` files except `*.example`, build output and the generated Prisma client. Verify locally with:
+Git operations are performed by the developer. `.gitignore` excludes all `.env*` files except `*.example`, build output and the generated Prisma client. `docs/` (including `implementation-plan.txt`, `progress-tracker.txt` and `endpoints.txt`) and `CLAUDE.md` are Git-tracked. Verify locally with:
 
 ```powershell
-git check-ignore -v backend/.env backend/.env.migrate frontend/.env docs/implementation-plan.txt
+git check-ignore -v backend/.env backend/.env.migrate frontend/.env
+git ls-files docs CLAUDE.md
 git status
 ```
