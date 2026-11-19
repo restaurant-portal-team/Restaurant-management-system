@@ -98,7 +98,8 @@ OPEN CONTRACT DECISIONS
 - [RESOLVED F01] /api/v1 prefix confirmed. Naming conventions per feature.
 - Requirements doc (section 13) proposes some paths/methods that differ from this inventory (e.g. PATCH vs POST for
   order transitions, /customer/orders, /staff/setup-password, /orders/:id/pay). Resolve per feature before coding.
-- Decide guest vs authenticated customer ordering and safe table verification.
+- [RESOLVED A2] Customers order as unauthenticated guests (no customer accounts, login or CUSTOMER role).
+  Still open: safe table verification (QR/table token vs verified table) and guest permissions.
 - Decide order cancellation and refund policies before adding endpoints.
 - Decide session setup invitation flow before exposing staff credential endpoints.
 - Determine how kitchen orders are filtered by status and how paginated lists work.

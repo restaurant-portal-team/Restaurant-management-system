@@ -20,7 +20,7 @@ CROSS-FEATURE BUSINESS RULES
 - Payment status separate from order status: SERVED can remain UNPAID.
 - Low-stock active if stock <= minimum; healthy only if stock > minimum. Stock zero is OUT_OF_STOCK.
 - Single order record in PostgreSQL; role portals show filtered views, not copied orders.
-- Customer ordering mode (guest vs login, QR vs verified table) must be approved before F11.
+- Customers order as unauthenticated guests (decision A2; no customer login or CUSTOMER role). Guest ordering mode (QR/table token vs verified table) and guest permissions must be approved before F11.
 - Preserve tasteful motion, responsive layouts, accessibility and reduced-motion preferences.
 
 PHASES / FEATURES
@@ -39,7 +39,7 @@ IMPLEMENTATION SUMMARY: React + Vite + TS frontend (TanStack Query, router, syst
   typescript-eslint strictTypeChecked, TypeScript ~6.0.3, Vitest/Supertest. Two DB roles (restaurant_migrator owner,
   restaurant_app runtime) with separate backend/.env and backend/.env.migrate; only *.example files committed.
 FILES CHANGED: Commit 3789d3a (74 files; see `git show --stat 3789d3a`).
-API ENDPOINTS: GET /api/v1/health - IMPLEMENTED (docs/api-endpoints.txt; endpoints.txt).
+API ENDPOINTS: GET /api/v1/health - IMPLEMENTED (docs/api-endpoints.txt; docs/endpoints.txt).
 TESTS / VERIFICATION:
   - Historical (2026-11-16, recorded in docs/api-endpoints.txt and session records): apps started; lint/typecheck/
     build passed; live health 200 with local PostgreSQL via restaurant_app, 503 with unreachable DB; human browser check.
@@ -96,7 +96,7 @@ COMMIT RECOMMENDATION: Committed as 6857d00, 5328fdc, 22d9135.
 PHASE 03 | FEATURE F03: Authentication and role-based access
 STATUS: PENDING
 DEPENDENCIES: F01
-SCOPE: Owner bootstrap, secure login/logout, password hashing, session or token strategy, guards and frontend protected routes for OWNER, KITCHEN_STAFF, WAITER, CUSTOMER if authenticated customers are used.
+SCOPE: Owner bootstrap, secure login/logout, password hashing, session or token strategy, guards and frontend protected routes for OWNER, KITCHEN_STAFF, WAITER (customers are unauthenticated guests per decision A2; no CUSTOMER role).
 ACCEPTANCE CRITERIA: Unauthenticated and unauthorized calls rejected; role routing and auth tests pass.
 IMPLEMENTATION SUMMARY: Not started.
 FILES CHANGED: None.
