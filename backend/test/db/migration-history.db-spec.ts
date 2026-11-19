@@ -14,6 +14,15 @@ import { connectMigratorReadOnly } from './db-helpers.ts';
 
 const MIGRATIONS = ['20261116145432_init_schema', '20261116153418_name_key_builtin_lower'] as const;
 
+/**
+ * Renders an ACL column with its entries sorted, so exact-ACL assertions do not depend on the
+ * order in which PostgreSQL stored the entries (that order varies with how the grants were made
+ * on each developer's machine; the set of entries is what matters). NULL stays NULL.
+ * Only ever called with the fixed column names below, never with input.
+ */
+const SORTED_ACL = (column: 'relacl' | 'datacl'): string =>
+  `(SELECT array_agg(entry::text ORDER BY entry::text)::text FROM unnest(${column}) AS entry)`;
+
 function localChecksum(name: string): string {
   return createHash('sha256')
     .update(readFileSync(join(BACKEND_ROOT, 'prisma', 'migrations', name, 'migration.sql')))
@@ -88,8 +97,8 @@ describe('F02 migration history and Gate D state (read-only, restaurant_migrator
               has_table_privilege('restaurant_app', 'public._prisma_migrations', 'DELETE') AS app_del,
               has_database_privilege('restaurant_app', current_database(), 'TEMPORARY') AS app_temp,
               has_database_privilege('restaurant_app', current_database(), 'CONNECT') AS app_connect,
-              (SELECT relacl::text FROM pg_class WHERE oid = 'public._prisma_migrations'::regclass) AS relacl,
-              (SELECT datacl::text FROM pg_database WHERE datname = current_database()) AS datacl`,
+              (SELECT ${SORTED_ACL('relacl')} FROM pg_class WHERE oid = 'public._prisma_migrations'::regclass) AS relacl,
+              (SELECT ${SORTED_ACL('datacl')} FROM pg_database WHERE datname = current_database()) AS datacl`,
     );
     expect(result.rows[0]).toEqual({
       app_sel: false,
@@ -99,14 +108,14 @@ describe('F02 migration history and Gate D state (read-only, restaurant_migrator
       app_temp: false,
       app_connect: true,
       relacl: '{restaurant_migrator=arwdDxtm/restaurant_migrator}',
-      datacl: '{restaurant_migrator=CTc/restaurant_migrator,restaurant_app=c/restaurant_migrator}',
+      datacl: '{restaurant_app=c/restaurant_migrator,restaurant_migrator=CTc/restaurant_migrator}',
     });
   });
 
   it('Gate E: exact ACLs and effective runtime privileges on the audit tables', async () => {
     const result = await client.query<Record<string, boolean | string | null>>(
-      `SELECT (SELECT relacl::text FROM pg_class WHERE oid = 'public.inventory_movements'::regclass) AS movements_acl,
-              (SELECT relacl::text FROM pg_class WHERE oid = 'public.payments'::regclass) AS payments_acl,
+      `SELECT (SELECT ${SORTED_ACL('relacl')} FROM pg_class WHERE oid = 'public.inventory_movements'::regclass) AS movements_acl,
+              (SELECT ${SORTED_ACL('relacl')} FROM pg_class WHERE oid = 'public.payments'::regclass) AS payments_acl,
               has_table_privilege('restaurant_app', 'public.inventory_movements', 'SELECT') AS mov_sel,
               has_table_privilege('restaurant_app', 'public.inventory_movements', 'INSERT') AS mov_ins,
               has_table_privilege('restaurant_app', 'public.inventory_movements', 'UPDATE') AS mov_upd,

@@ -4,7 +4,7 @@ IMPLEMENTATION PROGRESS TRACKER
 Project: Restaurant Management Portal
 Source of Truth: docs/implementation-plan.txt (scope, statuses, acceptance criteria, history)
 Total Phases: 21
-Last Updated: 2026-11-18
+Last Updated: 2026-11-19
 Current Phase: F03 - Authentication and role-based access (PENDING; proposal and approval required)
 
 LEGEND
@@ -100,7 +100,8 @@ Testing / Verification:
 [x] Gate A/A2 shadow dry run shows zero drift (historical 2026-11-16)
 [x] Gate C2 behavioural and Unicode DB tests 31/31, full-range mismatches 0 (historical 2026-11-16)
 [x] Gate D verification 37/37 (historical 2026-11-16)
-[x] Gate E `npm run test:db` 40/40 (historical 2026-11-16; not re-run 2026-11-18)
+[x] Gate E `npm run test:db` 40/40 (historical 2026-11-16; re-verified 2026-11-19 on the second laptop: 40/40,
+    after making ACL assertions order-insensitive in migration-history.db-spec.ts)
 
 Documentation:
 [x] README section 6: roles, migration policy, prohibited commands, gate sequence, D1-E2 runbook, default-privileges risk

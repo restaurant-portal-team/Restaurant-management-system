@@ -76,6 +76,17 @@ TESTS / VERIFICATION:
   - Re-verified 2026-11-18: offline migration-policy and Unicode tests PASS (within backend unit 76/76);
     prisma validate PASS; init migration contains 12 tables, 30 indexes, 19 FKs.
   - NOT re-verified 2026-11-18: test:db, db:migrate:status, db:verify-roles (live DB).
+  - Second-laptop setup 2026-11-19 (fresh local PostgreSQL 17.12, roles/databases/ACLs created by the human
+    as postgres; both migrations applied via db:migrate:deploy; D1/E1/E2 applied by the human; D2 applied as
+    REVOKE ALL ON DATABASE ... FROM PUBLIC + GRANT CONNECT to restaurant_app): db:assert-isolation PASS;
+    db:verify-roles 24/24 PASS; db:migrate:check-shadow "No difference detected"; db:migrate:status up to date;
+    test:db 40/40 PASS; GET /api/v1/health 200 {"status":"ok","database":"up"}; backend lint/typecheck PASS,
+    unit 76/76, e2e 9/9 (first run after a fresh npm install timed out, 3 re-runs 9/9); frontend lint/typecheck
+    PASS, tests 7/7.
+  - Test change 2026-11-19 (human-approved): test/db/migration-history.db-spec.ts now compares relacl/datacl
+    with entries sorted. The ACL entry ORDER differed between the two laptops (same entries, same effective
+    privileges), which failed the exact-text Gate E assertion on the second laptop. No privilege expectation
+    was relaxed; expected strings were only reordered.
 KNOWN LIMITATIONS / BLOCKERS: Approved deviation - shadow dry run via `prisma migrate diff`, not `migrate dev`.
   Deferred: S1 post-migration default-privileges guard; full audit immutability; NFC normalization (F07/F09);
   PostgreSQL upgrade procedure. Detailed original gate logs NOT recoverable.
