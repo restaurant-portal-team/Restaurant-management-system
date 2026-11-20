@@ -1,6 +1,7 @@
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import type { AppConfig } from './config/env.validation.js';
 
@@ -21,6 +22,8 @@ export function configureApp(app: INestApplication): void {
   app.setGlobalPrefix(API_PREFIX);
 
   app.use(helmet());
+  // Parses the (unsigned) session cookie; the token is validated server-side against staff_sessions.
+  app.use(cookieParser());
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {

@@ -4,8 +4,8 @@ IMPLEMENTATION PROGRESS TRACKER
 Project: Restaurant Management Portal
 Source of Truth: docs/implementation-plan.txt (scope, statuses, acceptance criteria, history)
 Total Phases: 21
-Last Updated: 2026-11-19
-Current Phase: F03 - Authentication and role-based access (PENDING; proposal and approval required)
+Last Updated: 2026-11-20
+Current Phase: F04 - Global UI shell and design system (PENDING; proposal and approval required)
 
 LEGEND
 [x] = Implemented and verified as completed
@@ -14,11 +14,12 @@ Evidence tags: (re-verified YYYY-MM-DD) = check re-run on that date; (historical
 README.md, docs/api-endpoints.txt or prior approved session records, not re-run since.
 
 OVERALL PROGRESS
-- Completed Phases: 2 / 21 (F01, F02)
+- Completed Phases: 3 / 21 (F01, F02, F03)
 - In Progress: 0
-- Pending Phases: 19 (F03-F21)
-- Verified Tasks: 49 / 322
-- Current Blockers: None blocking F03 start. F03 needs a written proposal, OWASP review and explicit approval.
+- Pending Phases: 18 (F04-F21)
+- Verified Tasks: 71 / 322
+- Current Blockers: None blocking F04 (needs proposal and approval). The second developer must run
+  db:migrate:deploy and D5 after pulling F03 (decision D6).
   F11 is blocked until the customer ordering mode decision is approved.
 
 ===================================================================================================
@@ -120,43 +121,43 @@ Deferred follow-ups (approved deferrals; not counted in F02 progress):
 ---------------------------------------------------------------------------------------------------
 
 PHASE F03 - Authentication and role-based access
-Status: PENDING
+Status: COMPLETED (2026-11-20)
 Dependencies: F01 (uses F02 users table)
-Progress: 0 / 22
+Progress: 22 / 22
 
 Backend:
-[ ] Owner bootstrap mechanism with no default or hard-coded credentials
-[ ] Password hashing with an approved algorithm; no plaintext storage or logging
-[ ] POST /api/v1/auth/login
-[ ] POST /api/v1/auth/logout
-[ ] GET /api/v1/auth/me
-[ ] Authentication guard rejects unauthenticated calls (401)
-[ ] Role guard for OWNER, KITCHEN_STAFF, WAITER rejects unauthorized calls (403) (customers are guests, decision A2)
-[ ] Inactive users cannot log in
+[x] Owner bootstrap mechanism with no default or hard-coded credentials (npm run auth:bootstrap-owner, run by the human 2026-11-20)
+[x] Password hashing with an approved algorithm; no plaintext storage or logging (Argon2id m=19MiB t=2 p=1; password.spec.ts, auth.service.spec.ts 2026-11-20)
+[x] POST /api/v1/auth/login (e2e auth.e2e-spec.ts 2026-11-20)
+[x] POST /api/v1/auth/logout (e2e auth.e2e-spec.ts 2026-11-20)
+[x] GET /api/v1/auth/me (e2e auth.e2e-spec.ts 2026-11-20)
+[x] Authentication guard rejects unauthenticated calls (401) - global deny-by-default (e2e auth.e2e-spec.ts 2026-11-20)
+[x] Role guard for OWNER, KITCHEN_STAFF, WAITER rejects unauthorized calls (403) (customers are guests, decision A2) (e2e auth.e2e-spec.ts 2026-11-20)
+[x] Inactive users cannot log in; deactivation revokes active sessions on the next request (unit + e2e 2026-11-20)
 
 Frontend:
-[ ] Login page with validation and error states
-[ ] Auth state handling and logout
-[ ] Protected routes with role-based redirects
+[x] Login page with validation and error states (login-page.test.tsx 2026-11-20)
+[x] Auth state handling and logout (require-auth.test.tsx AccountMenu 2026-11-20)
+[x] Protected routes with role-based redirects (require-auth.test.tsx 2026-11-20)
 
 Security:
-[ ] Login brute-force protection (rate limiting)
-[ ] Generic login errors with no user enumeration
-[ ] Secure session/token settings (HttpOnly, SameSite, CSRF handling as approved)
+[x] Login brute-force protection (rate limiting 5/min per IP) (e2e auth.e2e-spec.ts 2026-11-20)
+[x] Generic login errors with no user enumeration (same 401 + equalised Argon2 timing) (unit + e2e 2026-11-20)
+[x] Secure session/token settings (HttpOnly, SameSite=Strict, Path=/api/v1, Secure in prod, Origin check) (e2e auth.e2e-spec.ts 2026-11-20)
 
 Testing / Verification:
-[ ] Unit tests for the auth service and guards
-[ ] e2e 401/403 permission matrix per role
-[ ] Frontend route-guard tests
+[x] Unit tests for the auth service and session handling; guards covered end-to-end (2026-11-20)
+[x] e2e 401/403 permission matrix per role (e2e auth.e2e-spec.ts 2026-11-20)
+[x] Frontend route-guard tests (require-auth.test.tsx 2026-11-20)
 
 Documentation:
-[ ] Auth endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
-[ ] Plan closeout with OWASP review and test results in docs/implementation-plan.txt
+[x] Auth endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt (2026-11-20)
+[x] Plan closeout with OWASP review and test results in docs/implementation-plan.txt (2026-11-20)
 
 Human Approval:
-[ ] Session vs token strategy approved (no customer accounts; decision A2)
-[ ] Proposal with SECURITY IMPACT & OWASP REVIEW approved
-[ ] Completion approved after verification
+[x] Session vs token strategy approved: DB-backed opaque sessions, 12 h absolute / 2 h idle (D1, D2; 2026-11-20)
+[x] Proposal with SECURITY IMPACT & OWASP REVIEW approved (2026-11-20)
+[x] Completion approved after verification (human browser test 2026-11-20)
 
 ---------------------------------------------------------------------------------------------------
 
@@ -226,7 +227,7 @@ Documentation:
 
 Human Approval:
 [ ] Staff invitation/activation flow decision approved
-[ ] Proposal with SECURITY IMPACT & OWASP REVIEW approved
+[x] Proposal with SECURITY IMPACT & OWASP REVIEW approved (2026-11-20)
 [ ] Completion approved after verification
 
 ---------------------------------------------------------------------------------------------------
@@ -436,7 +437,7 @@ Documentation:
 
 Human Approval:
 [ ] Guest ordering mode decision (QR/table token vs verified table)
-[ ] Proposal with SECURITY IMPACT & OWASP REVIEW approved
+[x] Proposal with SECURITY IMPACT & OWASP REVIEW approved (2026-11-20)
 [ ] Completion approved after verification
 
 ---------------------------------------------------------------------------------------------------

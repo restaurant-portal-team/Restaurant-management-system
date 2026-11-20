@@ -17,6 +17,10 @@ export interface AppConfig {
   CORS_ORIGINS: string[];
   THROTTLE_TTL_MS: number;
   THROTTLE_LIMIT: number;
+  /** F03 decision D2: absolute session lifetime (default 12 h). */
+  SESSION_ABSOLUTE_TTL_MINUTES: number;
+  /** F03 decision D2: idle timeout (default 2 h); must not exceed the absolute lifetime. */
+  SESSION_IDLE_TIMEOUT_MINUTES: number;
 }
 
 export class EnvValidationError extends Error {
@@ -134,7 +138,13 @@ export function validateEnv(raw: Record<string, unknown>): AppConfig {
     CORS_ORIGINS: validateOrigins(text(raw, 'CORS_ORIGIN'), nodeEnv, problems),
     THROTTLE_TTL_MS: integer(raw, 'THROTTLE_TTL_MS', 60_000, 1_000, 3_600_000, problems),
     THROTTLE_LIMIT: integer(raw, 'THROTTLE_LIMIT', 100, 1, 100_000, problems),
+    SESSION_ABSOLUTE_TTL_MINUTES: integer(raw, 'SESSION_ABSOLUTE_TTL_MINUTES', 720, 5, 1_440, problems),
+    SESSION_IDLE_TIMEOUT_MINUTES: integer(raw, 'SESSION_IDLE_TIMEOUT_MINUTES', 120, 5, 1_440, problems),
   };
+
+  if (config.SESSION_IDLE_TIMEOUT_MINUTES > config.SESSION_ABSOLUTE_TTL_MINUTES) {
+    problems.push('SESSION_IDLE_TIMEOUT_MINUTES must not exceed SESSION_ABSOLUTE_TTL_MINUTES.');
+  }
 
   if (problems.length > 0) {
     throw new EnvValidationError(problems);

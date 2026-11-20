@@ -30,6 +30,9 @@ const REMEDIATION_ALLOWED_DROPS = [
   'ingredients_name_key_normalised_chk',
 ] as const;
 
+/** F03 (decision D1): additive staff_sessions table. */
+const SESSIONS_MIGRATION = '20261120100000_staff_sessions';
+
 /** Removes the approved DROP CONSTRAINT clauses (remediation migration only) before forbidden-statement scans. */
 function withoutApprovedDrops(folder: string, code: string): string {
   if (folder !== REMEDIATION_MIGRATION) return code;
@@ -60,6 +63,14 @@ function stripComments(sql: string): string {
     .split('\n')
     .map((line) => line.replace(/--.*$/, ''))
     .join('\n');
+}
+
+/** Individual SQL statements (comments removed, whitespace normalised) for order-insensitive comparison. */
+function sqlStatements(sql: string): string[] {
+  return stripComments(sql.replace(/\r/g, ''))
+    .split(';')
+    .map((statement) => statement.trim().replace(/\s+/g, ' '))
+    .filter(Boolean);
 }
 
 function generatedBlock(sql: string): string {
@@ -267,26 +278,61 @@ describe('Prisma migrations (offline)', () => {
       expect(sql).not.toMatch(/"quantity" BETWEEN/);
       expect(sql).not.toMatch(/"price" > 0/);
     });
-
-    it(
-      'Prisma-generated block matches an offline diff of the current schema (no DB connection)',
-      () => {
-        const fresh = execFileSync(
-          process.execPath,
-          [
-            join(BACKEND_ROOT, 'node_modules', 'prisma', 'build', 'index.js'),
-            'migrate',
-            'diff',
-            '--from-empty',
-            '--to-schema',
-            join(BACKEND_ROOT, 'prisma', 'schema.prisma'),
-            '--script',
-          ],
-          { cwd: BACKEND_ROOT, encoding: 'utf8', env: { ...process.env, PRISMA_HIDE_UPDATE_MESSAGE: '1' } },
-        );
-        expect(generatedBlock(sql)).toBe(fresh.trim());
-      },
-      60_000,
-    );
   });
+
+  describe('F03 staff sessions migration (decision D1)', () => {
+    const code = stripComments(readMigration(SESSIONS_MIGRATION));
+
+    it('exists and sorts after the F02 migrations', () => {
+      const folders = migrationFolders();
+      expect(folders).toContain(SESSIONS_MIGRATION);
+      expect(folders.indexOf(SESSIONS_MIGRATION)).toBeGreaterThan(folders.indexOf(REMEDIATION_MIGRATION));
+    });
+
+    it('only creates the staff_sessions table, its indexes, FK and CHECK constraints', () => {
+      expect([...code.matchAll(/CREATE TABLE "([a-z_]+)"/g)].map((m) => m[1])).toEqual(['staff_sessions']);
+      expect(code.match(/CREATE (UNIQUE )?INDEX/g)).toHaveLength(2);
+      const statements = code
+        .split(';')
+        .map((s) => s.trim().replace(/\s+/g, ' '))
+        .filter(Boolean);
+      const other = statements.filter(
+        (s) => !/^(BEGIN|COMMIT|SET LOCAL |CREATE TABLE "staff_sessions"|CREATE (UNIQUE )?INDEX |ALTER TABLE "staff_sessions" )/.test(s),
+      );
+      expect(other).toEqual([]);
+    });
+
+    it('uses ON DELETE RESTRICT and stores only a hex SHA-256 token hash', () => {
+      expect(code).toMatch(/FOREIGN KEY \("user_id"\) REFERENCES "users"\("id"\) ON DELETE RESTRICT ON UPDATE RESTRICT;/);
+      expect(code).toContain(`CHECK ("token_hash" ~ '^[0-9a-f]{64}$')`);
+      expect(code.match(/ADD CONSTRAINT "staff_sessions_[a-z_]+_chk"/g)).toHaveLength(4);
+    });
+  });
+
+  it(
+    'Prisma-generated blocks of all migrations together match an offline diff of the current schema (no DB connection)',
+    () => {
+      const fresh = execFileSync(
+        process.execPath,
+        [
+          join(BACKEND_ROOT, 'node_modules', 'prisma', 'build', 'index.js'),
+          'migrate',
+          'diff',
+          '--from-empty',
+          '--to-schema',
+          join(BACKEND_ROOT, 'prisma', 'schema.prisma'),
+          '--script',
+        ],
+        { cwd: BACKEND_ROOT, encoding: 'utf8', env: { ...process.env, PRISMA_HIDE_UPDATE_MESSAGE: '1' } },
+      );
+      // Each Prisma-generated statement must appear exactly once across the migrations (order-insensitive),
+      // so drift in any migration - or a schema change without a migration - fails this test.
+      const generated = migrationFolders()
+        .map(readMigration)
+        .filter((sql) => sql.includes(GENERATED_START))
+        .flatMap((sql) => sqlStatements(generatedBlock(sql)));
+      expect(generated.sort()).toEqual(sqlStatements(fresh).sort());
+    },
+    60_000,
+  );
 });

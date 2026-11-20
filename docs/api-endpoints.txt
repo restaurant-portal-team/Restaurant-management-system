@@ -47,6 +47,51 @@ TEST EVIDENCE: backend unit (health.service.spec.ts: up/down/timeout, no secret 
 NOTES / CHANGE HISTORY: 2026-11-16 created in F01. 2026-11-16 frontend consumer verified by human in browser
         (Operational / Reachable / Connected; Refresh works). F01 COMPLETED.
 
+FEATURE ID: F03
+METHOD + PATH: POST /api/v1/auth/login
+STATUS: IMPLEMENTED (code + unit/e2e tests 2026-11-20; live API + human browser verification 2026-11-20)
+AUTH / ROLES: Public (@Public). Origin header must be in CORS_ORIGIN (403 otherwise). Rate limit 5/min per client IP (429).
+REQUEST DTO / VALIDATION: LoginDto {email: string, trimmed, valid email, max 254; password: string, 1-256}. Unknown
+        fields -> 400. Email is lower-cased server-side.
+SUCCESS RESPONSE: 200 {"user":{"id","fullName","email","role"}} + Set-Cookie rmp_session=<opaque 43-char token>;
+        HttpOnly; SameSite=Strict; Path=/api/v1; Expires=+12h (Secure in production). Cache-Control: no-store.
+        A new session is created on every login; a session cookie sent with the request is revoked.
+ERROR RESPONSES: 400 validation; 401 "Invalid email or password." for unknown, wrong-password, inactive and
+        not-yet-activated accounts alike (equalised Argon2 timing); 403 origin; 429 rate limit.
+BACKEND CONTROLLER / SERVICE: backend/src/auth/auth.controller.ts, auth.service.ts, session.service.ts, password.ts.
+FRONTEND CONSUMER: frontend/src/features/auth/use-auth.ts (useLogin) -> routes/login-page.tsx.
+TEST EVIDENCE: backend unit (auth.service.spec.ts, password.spec.ts, session.service.spec.ts); backend e2e
+        (auth.e2e-spec.ts: cookie flags, generic 401s, 400 validation, 403 origin, 429, no secrets in body,
+        re-login revokes old session); frontend (login-page.test.tsx).
+NOTES / CHANGE HISTORY: 2026-11-20 created in F03 (decisions D1-D4).
+
+FEATURE ID: F03
+METHOD + PATH: POST /api/v1/auth/logout
+STATUS: IMPLEMENTED (code + unit/e2e tests 2026-11-20; live API + human browser verification 2026-11-20)
+AUTH / ROLES: Public and idempotent (a stale or expired cookie can always be cleared). Origin check applies.
+REQUEST DTO / VALIDATION: None (no body). Session taken from the rmp_session cookie.
+SUCCESS RESPONSE: 204; session revoked server-side (revoked_at); cookie cleared.
+ERROR RESPONSES: 403 origin.
+BACKEND CONTROLLER / SERVICE: backend/src/auth/auth.controller.ts, session.service.ts.
+FRONTEND CONSUMER: frontend/src/features/auth/use-auth.ts (useLogout) -> layouts/account-menu.tsx (Sign out).
+TEST EVIDENCE: backend e2e (revocation, cookie cleared, idempotent); frontend (require-auth.test.tsx AccountMenu).
+NOTES / CHANGE HISTORY: 2026-11-20 created in F03.
+
+FEATURE ID: F03
+METHOD + PATH: GET /api/v1/auth/me
+STATUS: IMPLEMENTED (code + unit/e2e tests 2026-11-20; live API + human browser verification 2026-11-20)
+AUTH / ROLES: Any authenticated staff role (OWNER, KITCHEN_STAFF, WAITER).
+REQUEST DTO / VALIDATION: None.
+SUCCESS RESPONSE: 200 {"id","fullName","email","role"} (role read from the database). Cache-Control: no-store.
+ERROR RESPONSES: 401 "Authentication required." (no cookie, unknown/forged/revoked token, absolute expiry,
+        2 h idle, or user deactivated - the session is revoked in those cases).
+BACKEND CONTROLLER / SERVICE: backend/src/auth/auth.controller.ts, guards.ts (SessionAuthGuard), session.service.ts.
+FRONTEND CONSUMER: frontend/src/features/auth/use-auth.ts (useSession) -> components/require-auth.tsx,
+        layouts/account-menu.tsx, routes/login-page.tsx, routes/workspace-page.tsx.
+TEST EVIDENCE: backend e2e (profile, expiry, forged token, deactivation, role matrix via test-only probe
+        controller); frontend (require-auth.test.tsx: redirects, wrong role, error state, malformed response).
+NOTES / CHANGE HISTORY: 2026-11-20 created in F03.
+
 GLOBAL API CONVENTIONS (F01)
 - Error body for all non-health errors: {"statusCode","error","message","requestId","timestamp"}; 5xx always returns
   a generic message; no stack traces, SQL, paths or config values are ever returned.
@@ -54,11 +99,15 @@ GLOBAL API CONVENTIONS (F01)
   future cookie auth (F03); disallowed origins receive no CORS headers.
 - Validation: global ValidationPipe (whitelist, forbidNonWhitelisted, forbidUnknownValues, transform).
 - Every response carries X-Request-Id (caller value accepted only if /^[A-Za-z0-9-]{8,64}$/).
+- Authentication (F03): global deny-by-default SessionAuthGuard; @Public() routes: GET /health, POST /auth/login,
+  POST /auth/logout. RolesGuard enforces @Roles(...) with the role read from the database. 401 message
+  "Authentication required."; 403 "You do not have permission to perform this action.".
+- CSRF (F03): POST/PUT/PATCH/DELETE require an Origin header from CORS_ORIGIN (403 "Request origin is not allowed.").
 
-DRAFT API INVENTORY — ALL PLANNED, NOT YET VERIFIED
-F03  POST   /api/v1/auth/login                  PLANNED
-F03  POST   /api/v1/auth/logout                 PLANNED
-F03  GET    /api/v1/auth/me                     PLANNED
+DRAFT API INVENTORY — PLANNED UNLESS MARKED IMPLEMENTED
+F03  POST   /api/v1/auth/login                  IMPLEMENTED (see above)
+F03  POST   /api/v1/auth/logout                 IMPLEMENTED (see above)
+F03  GET    /api/v1/auth/me                     IMPLEMENTED (see above)
 F05  GET    /api/v1/staff                       PLANNED
 F05  POST   /api/v1/staff                       PLANNED
 F05  PATCH  /api/v1/staff/:id                   PLANNED

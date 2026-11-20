@@ -107,6 +107,7 @@ model User {
   createdBy          User?               @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
   createdUsers       User[]              @relation("UserCreatedBy")
   setupTokens        StaffSetupToken[]
+  sessions           StaffSession[]
   acceptedOrders     Order[]             @relation("OrderAcceptedBy")
   readyOrders        Order[]             @relation("OrderReadyBy")
   servedOrders       Order[]             @relation("OrderServedBy")
@@ -132,6 +133,27 @@ model StaffSetupToken {
 
   @@index([userId])
   @@map("staff_setup_tokens")
+}
+
+/// Server-side staff login session (F03, decision D1). The browser holds an opaque random token in an
+/// HttpOnly cookie; only its SHA-256 hash is stored. Sessions are revoked (revoked_at), never deleted
+/// by the runtime role (D5). Every request re-checks expiry, idle time, revocation and users.is_active.
+model StaffSession {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  /// Hex SHA-256 of the session token. The plain token is never stored.
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(128)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Updated (throttled) on authenticated requests; drives the idle timeout.
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  /// Absolute expiry, fixed at login.
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([userId, revokedAt])
+  @@map("staff_sessions")
 }
 
 // ─── Tables ─────────────────────────────────────────────────────────────────

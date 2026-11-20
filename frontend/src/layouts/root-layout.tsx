@@ -1,4 +1,5 @@
 import { Link, Outlet } from 'react-router';
+import { AccountMenu } from './account-menu';
 
 export function RootLayout() {
   return (
@@ -28,6 +29,7 @@ export function RootLayout() {
               Restaurant Portal
             </span>
           </Link>
+          <AccountMenu />
         </div>
       </header>
 

@@ -1,5 +1,6 @@
 import { Controller, Get, Header, HttpStatus, Res } from '@nestjs/common';
 import type { Response } from 'express';
+import { Public } from '../auth/decorators.js';
 import { HealthService, type HealthReport } from './health.service.js';
 
 /**
@@ -7,6 +8,7 @@ import { HealthService, type HealthReport } from './health.service.js';
  * Exposes only status + database up/down + timestamp (no versions, hosts or error details).
  * Production readiness/diagnostic checks may need separate access controls (human-owned decision).
  */
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly health: HealthService) {}

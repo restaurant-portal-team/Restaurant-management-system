@@ -12,7 +12,11 @@ import type pg from 'pg';
 import { BACKEND_ROOT } from '../../scripts/db/migration-env.ts';
 import { connectMigratorReadOnly } from './db-helpers.ts';
 
-const MIGRATIONS = ['20261116145432_init_schema', '20261116153418_name_key_builtin_lower'] as const;
+const MIGRATIONS = [
+  '20261116145432_init_schema',
+  '20261116153418_name_key_builtin_lower',
+  '20261120100000_staff_sessions',
+] as const;
 
 /**
  * Renders an ACL column with its entries sorted, so exact-ACL assertions do not depend on the

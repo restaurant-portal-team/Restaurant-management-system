@@ -75,4 +75,20 @@ describe('validateEnv', () => {
     expect(errorMessage({ ...validRaw, PORT: '70000' })).toContain('PORT');
     expect(errorMessage({ ...validRaw, PORT: '30a' })).toContain('PORT');
   });
+
+  it('defaults session lifetimes to 12 h absolute / 2 h idle (F03 decision D2)', () => {
+    expect(validateEnv(validRaw)).toMatchObject({
+      SESSION_ABSOLUTE_TTL_MINUTES: 720,
+      SESSION_IDLE_TIMEOUT_MINUTES: 120,
+    });
+  });
+
+  it('rejects out-of-range session settings and an idle timeout longer than the lifetime', () => {
+    expect(errorMessage({ ...validRaw, SESSION_ABSOLUTE_TTL_MINUTES: '2' })).toContain(
+      'SESSION_ABSOLUTE_TTL_MINUTES',
+    );
+    expect(
+      errorMessage({ ...validRaw, SESSION_ABSOLUTE_TTL_MINUTES: '60', SESSION_IDLE_TIMEOUT_MINUTES: '90' }),
+    ).toContain('must not exceed');
+  });
 });

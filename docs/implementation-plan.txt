@@ -94,17 +94,87 @@ HUMAN APPROVAL: Granted 2026-11-16 after closure review (historical record). His
 COMMIT RECOMMENDATION: Committed as 6857d00, 5328fdc, 22d9135.
 
 PHASE 03 | FEATURE F03: Authentication and role-based access
-STATUS: PENDING
+STATUS: COMPLETED
 DEPENDENCIES: F01
 SCOPE: Owner bootstrap, secure login/logout, password hashing, session or token strategy, guards and frontend protected routes for OWNER, KITCHEN_STAFF, WAITER (customers are unauthenticated guests per decision A2; no CUSTOMER role).
 ACCEPTANCE CRITERIA: Unauthenticated and unauthorized calls rejected; role routing and auth tests pass.
-IMPLEMENTATION SUMMARY: Not started.
-FILES CHANGED: None.
-API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
-TESTS / VERIFICATION: Not run.
-KNOWN LIMITATIONS / BLOCKERS: None recorded.
-HUMAN APPROVAL: Not granted.
-COMMIT RECOMMENDATION: Not yet.
+APPROVED SCOPE (human-approved 2026-11-20, recommended decisions D1-D6):
+  - D1 DB-backed opaque sessions: new additive migration with table staff_sessions (token SHA-256 hash only);
+    every request re-checks session (not revoked/expired) and users.is_active, so deactivation revokes access.
+  - D2 Session lifetime: 12 h absolute, 2 h idle.
+  - D3 First OWNER via human-run interactive CLI script (npm run auth:bootstrap-owner); no seeded/default credentials;
+    refuses if an OWNER already exists.
+  - D4 New dependencies: @node-rs/argon2 (Argon2id, prebuilt, no install script), cookie-parser, @types/cookie-parser.
+  - D5 Post-migration hardening (human, pgAdmin, both laptops): REVOKE DELETE ON staff_sessions FROM restaurant_app.
+  - D6 No other migrations until F03 is merged; the second developer pulls, runs db:migrate:deploy and D5.
+  - Endpoints: POST /api/v1/auth/login, POST /api/v1/auth/logout, GET /api/v1/auth/me. Global deny-by-default auth
+    guard (@Public for /health and /auth/login), RolesGuard, Origin check on state-changing requests (CSRF),
+    HttpOnly + SameSite=Strict cookie (Secure in production), login rate limit 5/min per IP, generic login errors.
+  - Approved changes to completed code: health.controller.ts (@Public only); migration-history.db-spec.ts
+    (MIGRATIONS list gains the new migration).
+  - Out of scope: staff creation and setup-password (F05); full role shells/sidebars (F04: F03 adds placeholders only).
+  - Developed on branch feature/staff-access-management (F03, F04, F05); human performs all Git operations.
+  - Additional approved change (human, 2026-11-20): scripts/db/migration-sql.spec.ts drift test now compares the
+    Prisma-generated statements of ALL migrations (order-insensitive) with an offline diff of the current schema,
+    and gains structural checks for the new migration. Init-migration checksum and policy checks are unchanged.
+IMPLEMENTATION SUMMARY (in progress, 2026-11-20):
+  - Backend: AuthModule (auth.controller, auth.service, session.service, guards, decorators, password, login DTO).
+    Global guards in order ThrottlerGuard -> OriginGuard (CSRF) -> SessionAuthGuard (deny by default) -> RolesGuard.
+    Opaque 32-byte session token (base64url) in cookie rmp_session; DB stores hex SHA-256 only; each request checks
+    revoked_at, expires_at (12 h), last_seen_at idle (2 h, touched at most once per minute) and users.is_active and
+    revokes the session when any check fails. Login: email trimmed/lower-cased, Argon2id verify, dummy verify for
+    unknown/inactive/no-password accounts, one generic 401, 5/min per IP, new session per login, previous cookie
+    session revoked. Logout public + idempotent. /health marked @Public. cookie-parser added in app.setup.ts.
+    Env: SESSION_ABSOLUTE_TTL_MINUTES (720), SESSION_IDLE_TIMEOUT_MINUTES (120), validated (idle <= absolute).
+  - DB: migration 20261120100000_staff_sessions (1 table, 2 indexes, 1 FK RESTRICT, 4 CHECKs); deployed to the
+    second laptop's restaurant_dev 2026-11-20 after shadow dry run "No difference detected".
+  - Owner bootstrap: npm run auth:bootstrap-owner (scripts/auth/bootstrap-owner.ts): interactive, hidden password,
+    Argon2id, advisory lock, refuses if an OWNER exists, prints only the new id; uuid-v7 helper with tests.
+  - Frontend: api-client (credentials: 'include', apiPost, 204 handling); features/auth (auth-api with response-shape
+    validation, use-auth hooks); /login page; RequireAuth route guard; placeholder /owner, /kitchen, /waiter
+    workspaces; header AccountMenu (name, role, Sign out / Staff sign in).
+FILES CHANGED:
+  backend: package.json, package-lock.json, .env.example, prisma/schema.prisma,
+    prisma/migrations/20261120100000_staff_sessions/migration.sql, src/app.module.ts, src/app.setup.ts,
+    src/config/env.validation.ts, src/config/env.validation.spec.ts, src/health/health.controller.ts,
+    src/auth/* (new), scripts/auth/* (new), scripts/db/migration-sql.spec.ts, test/auth.e2e-spec.ts (new),
+    test/db/f03-sessions.db-spec.ts (new), test/db/migration-history.db-spec.ts.
+  frontend: src/lib/api-client.ts, src/app/router.tsx, src/layouts/root-layout.tsx, src/layouts/account-menu.tsx,
+    src/features/auth/* (new), src/components/require-auth.tsx (+test), src/routes/login-page.tsx (+test),
+    src/routes/workspace-page.tsx, src/test/mock-api.ts.
+  docs/README: README.md (sections 1, 5, 6.7, 7.1), docs/api-endpoints.txt, docs/endpoints.txt, this file,
+    docs/progress-tracker.txt.
+API ENDPOINTS: POST /api/v1/auth/login, POST /api/v1/auth/logout, GET /api/v1/auth/me - IMPLEMENTED
+  (docs/api-endpoints.txt; docs/endpoints.txt).
+TESTS / VERIFICATION (2026-11-20, second laptop):
+  - Backend: lint PASS, typecheck PASS, unit 110/110 PASS (incl. 29 migration-policy), e2e 22/22 PASS
+    (9 foundation + 13 auth), prisma validate PASS, db:migrate:check-shadow "No difference detected",
+    db:migrate:deploy applied 20261120100000_staff_sessions, test:db 40/40 PASS before the new DB suite.
+  - Frontend: lint PASS, typecheck PASS, tests 25/25 PASS, build PASS.
+  - npm audit --omit=dev: 3 high findings in prisma CLI -> @prisma/config -> effect (pre-existing, not introduced by
+    F03; fix requires a Prisma major change) - recorded, not changed.
+  - Database (2026-11-20): D5 applied by the human (REVOKE DELETE ON staff_sessions FROM restaurant_app; verified
+    app SELECT/INSERT/UPDATE = t, DELETE = f). test:db 47/47 PASS (40 F02 + 7 new f03-sessions.db-spec.ts:
+    exact ACL, DELETE 42501, CHECKs, unique, FK, ON DELETE RESTRICT); db:verify-roles 24/24 PASS;
+    db:migrate:status up to date.
+  - Owner bootstrap (2026-11-20): npm run auth:bootstrap-owner run by the human; first OWNER created (id only printed).
+  - Live API smoke (2026-11-20): GET /health 200; GET /auth/me without cookie 401; POST /auth/login without Origin 403.
+  - Human browser verification (2026-11-20, reported "Sab theek chala"): wrong password -> generic error and
+    cleared password; correct login -> /owner workspace with name/role in header; /kitchen as OWNER -> redirected
+    to /owner; refresh keeps the session; Sign out -> /login and /owner requires login again.
+  - SECURITY / OWASP / STRIDE verification: Broken Access Control (deny-by-default guard, role matrix 401/403 e2e);
+    Authentication Failures (Argon2id, generic 401, equalised timing, 5/min login limit, inactive users rejected,
+    deactivation revokes sessions); Cryptographic Failures (only SHA-256 token hashes stored, random 32-byte tokens);
+    Security Misconfiguration (HttpOnly, SameSite=Strict, Path=/api/v1, Secure in production, Origin check);
+    Logging (login_failed/forbidden_role/origin_rejected with request ids, no emails/passwords/tokens); Exceptional
+    conditions (malformed tokens/hashes return 401/false, never 500). STRIDE: S/T/R/I/D/E mitigations as approved.
+    Remaining risks: see KNOWN LIMITATIONS.
+KNOWN LIMITATIONS / BLOCKERS: Expired/revoked session rows are kept (no cleanup job yet; deletion is blocked for
+  the runtime role by D5). Login rate limit is per IP (in-memory throttler; resets on restart). Second developer
+  must run db:migrate:deploy and D5 after pulling (D6).
+HUMAN APPROVAL: Proposal approved 2026-11-20 (D1-D6); drift-test change approved 2026-11-20; completion confirmed by the
+  human after browser verification 2026-11-20.
+COMMIT RECOMMENDATION: feat(auth): add staff login sessions and role-based access
 
 PHASE 04 | FEATURE F04: Global UI shell and design system
 STATUS: PENDING

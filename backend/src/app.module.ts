@@ -2,6 +2,8 @@ import { type MiddlewareConsumer, Module, type NestModule } from '@nestjs/common
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AuthModule } from './auth/auth.module.js';
+import { OriginGuard, RolesGuard, SessionAuthGuard } from './auth/guards.js';
 import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { type AppConfig, validateEnv } from './config/env.validation.js';
@@ -28,10 +30,15 @@ import { PrismaModule } from './prisma/prisma.module.js';
       ],
     }),
     PrismaModule,
+    AuthModule,
     HealthModule,
   ],
   providers: [
+    // Order matters: rate limit -> CSRF origin check -> authentication (deny by default) -> roles.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: OriginGuard },
+    { provide: APP_GUARD, useClass: SessionAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })

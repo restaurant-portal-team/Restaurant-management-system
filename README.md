@@ -39,7 +39,15 @@ Two roles and two databases are created manually (pgAdmin 4 or SQL Shell):
 | `restaurant_app`      | NestJS runtime only             | LOGIN; no SUPERUSER/CREATEDB/CREATEROLE; CONNECT on `restaurant_dev`; USAGE on `public`; DML on future tables + USAGE/SELECT on future sequences via default privileges; no CREATE; cannot connect to the shadow DB |
 | `restaurant_migrator` | Prisma CLI migrations only      | LOGIN; no SUPERUSER/CREATEDB/CREATEROLE; owns both databases; CREATE in `public` |
 
-Default privileges (so future migrator-created objects are usable by the runtime role):
+Database-level access (run as `postgres`, connected to the `postgres` database). PUBLIC loses CONNECT and TEMPORARY on both databases; only `restaurant_app` gets CONNECT on `restaurant_dev` (the owner keeps its own privileges). This also covers Gate D2, and `test/db/migration-history.db-spec.ts` asserts the resulting ACL `{restaurant_app=c/restaurant_migrator,restaurant_migrator=CTc/restaurant_migrator}` (entries compared sorted):
+
+```sql
+REVOKE ALL ON DATABASE restaurant_dev FROM PUBLIC;
+GRANT CONNECT ON DATABASE restaurant_dev TO restaurant_app;
+REVOKE ALL ON DATABASE "restaurant-dev-shadow" FROM PUBLIC;
+```
+
+Default privileges (so future migrator-created objects are usable by the runtime role; run while connected to **`restaurant_dev`**, because default privileges are per database):
 
 ```sql
 ALTER DEFAULT PRIVILEGES FOR ROLE restaurant_migrator IN SCHEMA public
@@ -116,6 +124,7 @@ npm run dev            # http://localhost:5173
 | `npm run db:migrate:deploy`   | Isolation preflight, then `prisma migrate deploy` | **Yes — only with explicit approval** |
 | `npm run test:db`             | Real-database suites: rollback-only runtime tests + read-only migrator checks (section 6.5) | No persistent data (sequence values advance) |
 | `npm run unicode:generate`    | Regenerates the PostgreSQL 17 case table used for name keys (section 6.6); offline | No |
+| `npm run auth:bootstrap-owner` | Interactive: creates the first Owner account (section 7.1); refuses if one exists | **Yes — one `users` row** |
 
 ### Shadow-database safety (defense-in-depth, not an absolute guarantee)
 
@@ -192,6 +201,7 @@ Execute as **`postgres`** (superuser; acts as the object owner) or as the owner 
 | D2 | `REVOKE TEMPORARY ON DATABASE restaurant_dev FROM PUBLIC;` | runtime cannot create temp tables (42501); migrator keeps its own TEMP |
 | E1 | `REVOKE UPDATE, DELETE ON TABLE public.inventory_movements FROM restaurant_app;` | stock ledger is append-only for the runtime (INSERT/SELECT kept) |
 | E2 | `REVOKE DELETE ON TABLE public.payments FROM restaurant_app;` | payments cannot be deleted by the runtime (INSERT/SELECT/UPDATE kept) |
+| D5 (F03) | `REVOKE DELETE ON TABLE public.staff_sessions FROM restaurant_app;` | login sessions are revoked (`revoked_at`), never deleted by the runtime (SELECT/INSERT/UPDATE kept); run after migration `20261120100000_staff_sessions` |
 
 Verification (effective privileges, read-only):
 
@@ -214,6 +224,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public._prisma_migrations TO resta
 GRANT TEMPORARY ON DATABASE restaurant_dev TO PUBLIC;
 GRANT UPDATE, DELETE ON TABLE public.inventory_movements TO restaurant_app;
 GRANT DELETE ON TABLE public.payments TO restaurant_app;
+GRANT DELETE ON TABLE public.staff_sessions TO restaurant_app;
 ```
 
 **When to run it**
@@ -231,7 +242,19 @@ All endpoints are served under `/api/v1`. The contract register lives in `docs/a
 
 - `GET /api/v1/health` — public, minimal: `{ "status": "ok"|"error", "database": "up"|"down", "timestamp" }`, `200` or `503`, `Cache-Control: no-store`. It intentionally exposes no versions, hosts or error details. Production readiness/diagnostic checks may require separate access controls.
 
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me` — staff authentication (F03, see below).
+
 Security baseline: Helmet headers, explicit CORS allowlist (no `*`), global ValidationPipe (`whitelist`, `forbidNonWhitelisted`), global rate limiting, centralised safe error responses with request IDs, `x-powered-by` disabled, API bound to `127.0.0.1` by default.
+
+### 7.1 Staff authentication (F03)
+
+- **Who logs in:** staff only (`OWNER`, `KITCHEN_STAFF`, `WAITER`). Customers are unauthenticated guests (decision A2).
+- **Deny by default:** a global guard requires a valid session on every route except those marked `@Public()` (`/health`, `/auth/login`, `/auth/logout`). `@Roles(...)` restricts a route to roles; the role always comes from the database.
+- **Sessions (D1/D2):** login creates a row in `staff_sessions` and sets the HttpOnly cookie `rmp_session` (`SameSite=Strict`, `Path=/api/v1`, `Secure` in production). Only the SHA-256 hash of the token is stored. Every request re-checks revocation, absolute expiry (`SESSION_ABSOLUTE_TTL_MINUTES`, default 720), idle timeout (`SESSION_IDLE_TIMEOUT_MINUTES`, default 120) and `users.is_active` — deactivated staff lose access on their next request. Logout revokes the session (`revoked_at`).
+- **CSRF:** every POST/PUT/PATCH/DELETE must carry an `Origin` header from `CORS_ORIGIN` (403 otherwise), in addition to `SameSite=Strict`.
+- **Passwords:** Argon2id (m=19 MiB, t=2, p=1) via `@node-rs/argon2`; new passwords 12–128 characters. Login failures return one generic `401 Invalid email or password.` with equalised timing; login is limited to 5 attempts per minute per IP.
+- **First Owner (D3):** in `backend/`, run `npm run auth:bootstrap-owner` in an interactive terminal and type the name, email and password (hidden). There are no default or seeded credentials; the script refuses if an Owner already exists and prints only the new account id. Further staff accounts are created by the Owner in F05.
+- **After pulling F03 on another laptop:** `npm install`, `npm run db:migrate:check-shadow`, `npm run db:migrate:deploy`, then run D5 (section 6.7) as `postgres`, then `npm run test:db`.
 
 ## 8. Git hygiene
 
