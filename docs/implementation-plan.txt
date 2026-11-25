@@ -177,17 +177,57 @@ HUMAN APPROVAL: Proposal approved 2026-11-20 (D1-D6); drift-test change approved
 COMMIT RECOMMENDATION: feat(auth): add staff login sessions and role-based access
 
 PHASE 04 | FEATURE F04: Global UI shell and design system
-STATUS: PENDING
+STATUS: COMPLETED (2026-11-25)
 DEPENDENCIES: F01
 SCOPE: Professional responsive app shell, role-specific sidebar, shared components, typography, accessible theme, subtle purposeful animations, loading/empty/error states.
 ACCEPTANCE CRITERIA: Four role shells render; mobile navigation and reduced-motion support verified; no fake production data.
-IMPLEMENTATION SUMMARY: Not started.
-FILES CHANGED: None.
-API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
-TESTS / VERIFICATION: Not run.
-KNOWN LIMITATIONS / BLOCKERS: None recorded.
-HUMAN APPROVAL: Not granted.
-COMMIT RECOMMENDATION: Not yet.
+APPROVED SCOPE (human-approved 2026-11-25, recommended decisions U1-U5):
+  - Four shells: OWNER, KITCHEN_STAFF, WAITER (authenticated, sidebar + header + mobile drawer, behind RequireAuth)
+    and CUSTOMER guest shell (public, top navigation, no staff links or data; decision A2).
+  - Navigation per requirements section 5 from one config (frontend/src/app/navigation.ts).
+  - U1 Guest routes /menu, /cart, /my-orders are public placeholders; table-token flow is decided before F11.
+  - U2 Not-yet-built sections stay in the navigation and show an empty state naming the delivering feature
+    (e.g. "Coming in F07"); no fake or sample data anywhere. My Profile/Settings show real /auth/me data.
+  - U3 Theme follows the system light/dark preference (no manual toggle). U4 Inline SVG icons, no new dependency.
+  - U5 UI conventions documented in docs/ui-conventions.md.
+  - Shared components: PageHeader, FormField/TextInput/Select, DataTable, Dialog (native <dialog>), EmptyState,
+    ErrorState, LoadingState/Skeleton, Icon; existing Button/Card/Spinner/StatusBadge kept compatible.
+  - Approved changes to completed F03 frontend code: app/router.tsx, layouts/root-layout.tsx (public layout),
+    layouts/account-menu.tsx (also used in the staff header), routes/workspace-page.tsx (replaced by overview pages).
+    RequireAuth and all auth logic stay unchanged. No API or database changes.
+  - Contrast fixes found by the new WCAG test (within the approved theme scope): status colours success/warning/
+    danger became theme-aware tokens; accent text on home, login and 404 pages moved from brand-600 to
+    brand-700 (dark: brand-300).
+  - Product name (human-requested 2026-11-25): brand renamed to "Restonex" with the tagline "Next-generation
+    restaurant system" (Brand default subtitle, public footer, home page h1, index.html title/description).
+IMPLEMENTATION SUMMARY (2026-11-25):
+  - Routing: public RootLayout (/, /login, 404); StaffShell per role inside RequireAuth (/owner, /kitchen, /waiter
+    subtrees); GuestShell (/menu, /cart, /my-orders). Child routes are generated from app/navigation.ts, so every
+    nav link has exactly one page. Overview pages greet the user; unbuilt sections show "Coming in F0x" with the
+    feature name; My Profile / Settings show real /auth/me data.
+  - StaffShell: sticky sidebar (lg+), header with AccountMenu, mobile drawer (Dialog placement="left") whose open
+    state is tied to the current path (closes on any navigation). Skip link and focusable <main id="main">.
+  - Components: Icon (inline SVG set), PageHeader, FormField/TextInput/Select, DataTable, Dialog (native <dialog>,
+    Escape/backdrop/close button, focus return), EmptyState, ErrorState, LoadingState, Skeleton; Brand/SkipLink.
+  - Theme: themed status tokens, slide-in-left animation, global reduced-motion rule kept; no new dependencies.
+FILES CHANGED (frontend/src): app/navigation.ts (new), app/router.tsx, layouts/brand.tsx (new),
+  layouts/staff-shell.tsx (new), layouts/guest-shell.tsx (new), layouts/sidebar-nav.tsx (new), layouts/root-layout.tsx,
+  routes/workspace-pages.tsx (new; replaces routes/workspace-page.tsx), routes/home-page.tsx, routes/login-page.tsx,
+  routes/not-found-page.tsx, routes/home-page.test.tsx, frontend/index.html, components/ui/{icon,page-header,states,form-field,data-table,dialog}.tsx (new),
+  styles/index.css; tests: layouts/shells.test.tsx, components/ui/components.test.tsx, styles/contrast.test.ts (new).
+  Docs: docs/ui-conventions.md (new), this file, docs/progress-tracker.txt.
+API ENDPOINTS: None added or changed (consumes existing GET /api/v1/auth/me, POST /api/v1/auth/logout).
+TESTS / VERIFICATION (2026-11-25):
+  - Frontend: lint PASS, typecheck PASS, build PASS, tests 60/60 PASS (25 existing + 17 shells/navigation/mobile/
+    reduced-motion + 9 components + 9 contrast). package.json/package-lock.json unchanged (no new dependencies).
+  - Re-run after the Restonex rename (2026-11-25): tests 60/60 PASS, lint PASS, build PASS.
+  - Human browser check (2026-11-25): PASS - owner sidebar and groups, "Coming in F0x" pages, Settings profile,
+    mobile drawer (Esc/backdrop/close/link), keyboard-only navigation with skip link and focus ring, light/dark,
+    reduced motion, wrong-role and signed-out redirects, customer guest shell.
+KNOWN LIMITATIONS / BLOCKERS: jsdom has no layout engine, so the lg breakpoint and the visual drawer animation are
+  verified in the browser, not in unit tests. Theme follows the OS setting only (no manual toggle, decision U3).
+HUMAN APPROVAL: Proposal approved 2026-11-25 (U1-U5); completion approved 2026-11-25 after human browser test.
+COMMIT RECOMMENDATION: feat(ui): add Restonex role-based app shells and design system
 
 PHASE 05 | FEATURE F05: Owner staff management
 STATUS: PENDING

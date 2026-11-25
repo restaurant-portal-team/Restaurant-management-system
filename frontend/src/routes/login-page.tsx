@@ -71,7 +71,7 @@ export function LoginPage() {
   return (
     <div className="mx-auto max-w-md animate-fade-up py-6 sm:py-12">
       <div className="mb-8 text-center">
-        <p className="text-sm font-semibold tracking-wide text-brand-600 uppercase">Staff portal</p>
+        <p className="text-sm font-semibold tracking-wide text-brand-700 uppercase dark:text-brand-300">Staff portal</p>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">Sign in</h1>
         <p className="mt-2 text-sm text-ink-muted">Owner, kitchen and waiter accounts only.</p>
       </div>

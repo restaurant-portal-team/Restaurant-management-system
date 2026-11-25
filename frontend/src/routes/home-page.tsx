@@ -8,11 +8,11 @@ export function HomePage() {
   return (
     <div className="space-y-10">
       <section className="max-w-2xl animate-fade-up">
-        <p className="text-sm font-semibold tracking-wide text-brand-600 uppercase">
+        <p className="text-sm font-semibold tracking-wide text-brand-700 uppercase dark:text-brand-300">
           Single-restaurant operations
         </p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Restaurant Management Portal
+          Restonex
         </h1>
         <p className="mt-4 text-lg text-pretty text-ink-muted">
           Orders, kitchen, service, inventory and billing in one place. Role-based workspaces for

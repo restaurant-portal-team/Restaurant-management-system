@@ -26,7 +26,7 @@ describe('HomePage', () => {
     renderRoute('/');
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Restaurant Management Portal' }),
+      screen.getByRole('heading', { level: 1, name: 'Restonex' }),
     ).toBeInTheDocument();
     expect(await screen.findByText('Operational')).toBeInTheDocument();
     expect(screen.getByText('Connected')).toBeInTheDocument();

@@ -4,8 +4,8 @@ IMPLEMENTATION PROGRESS TRACKER
 Project: Restaurant Management Portal
 Source of Truth: docs/implementation-plan.txt (scope, statuses, acceptance criteria, history)
 Total Phases: 21
-Last Updated: 2026-11-20
-Current Phase: F04 - Global UI shell and design system (PENDING; proposal and approval required)
+Last Updated: 2026-11-25
+Current Phase: F05 - Owner staff management (PENDING; proposal and approval required)
 
 LEGEND
 [x] = Implemented and verified as completed
@@ -14,11 +14,11 @@ Evidence tags: (re-verified YYYY-MM-DD) = check re-run on that date; (historical
 README.md, docs/api-endpoints.txt or prior approved session records, not re-run since.
 
 OVERALL PROGRESS
-- Completed Phases: 3 / 21 (F01, F02, F03)
+- Completed Phases: 4 / 21 (F01, F02, F03, F04)
 - In Progress: 0
-- Pending Phases: 18 (F04-F21)
-- Verified Tasks: 71 / 322
-- Current Blockers: None blocking F04 (needs proposal and approval). The second developer must run
+- Pending Phases: 17 (F05-F21)
+- Verified Tasks: 86 / 322
+- Current Blockers: The second developer must run
   db:migrate:deploy and D5 after pulling F03 (decision D6).
   F11 is blocked until the customer ordering mode decision is approved.
 
@@ -162,34 +162,34 @@ Human Approval:
 ---------------------------------------------------------------------------------------------------
 
 PHASE F04 - Global UI shell and design system
-Status: PENDING
+Status: COMPLETED (2026-11-25)
 Dependencies: F01
-Progress: 0 / 15
+Progress: 15 / 15
 
 Frontend:
-[ ] Responsive app shell layout
-[ ] Role-specific sidebars for OWNER, KITCHEN_STAFF, WAITER and CUSTOMER
-[ ] Mobile navigation
-[ ] Shared components (buttons, cards, form fields, tables, dialogs)
-[ ] Typography and accessible color theme with sufficient contrast
-[ ] Loading, empty and error state components
-[ ] Subtle animations that respect prefers-reduced-motion
+[x] Responsive app shell layout: public, staff and guest layouts (shells.test.tsx (2026-11-25))
+[x] Role-specific sidebars for OWNER, KITCHEN_STAFF, WAITER and CUSTOMER (guest top navigation, A2) (shells.test.tsx (2026-11-25))
+[x] Mobile navigation: native <dialog> drawer, Escape/backdrop/link close, focus return (shells.test.tsx (2026-11-25))
+[x] Shared components (buttons, cards, form fields, tables, dialogs) (components.test.tsx (2026-11-25))
+[x] Typography and accessible color theme with sufficient contrast (contrast.test.ts WCAG AA, light + dark (2026-11-25))
+[x] Loading, empty and error state components (components.test.tsx (2026-11-25))
+[x] Subtle animations that respect prefers-reduced-motion (global CSS rule + motion-reduce variants, tested (2026-11-25))
 
 Security:
-[ ] No fake production data in shells or components
+[x] No fake production data in shells or components ("Coming in F0x" states; profile uses /auth/me (2026-11-25))
 
 Testing / Verification:
-[ ] Tests: all four role shells render
-[ ] Tests: mobile navigation and reduced-motion behaviour
-[ ] Keyboard navigation and accessibility checks
+[x] Tests: all four role shells render (shells.test.tsx (2026-11-25))
+[x] Tests: mobile navigation and reduced-motion behaviour (shells.test.tsx (2026-11-25))
+[x] Keyboard navigation and accessibility checks (human browser test: keyboard, mobile drawer, light/dark, reduced motion (2026-11-25))
 
 Documentation:
-[ ] UI conventions and component usage documented
-[ ] Plan closeout in docs/implementation-plan.txt
+[x] UI conventions and component usage documented (docs/ui-conventions.md (2026-11-25))
+[x] Plan closeout in docs/implementation-plan.txt (2026-11-25)
 
 Human Approval:
-[ ] Proposal approved
-[ ] Completion approved after verification
+[x] Proposal approved (2026-11-25, decisions U1-U5)
+[x] Completion approved after verification (human browser test 2026-11-25)
 
 ---------------------------------------------------------------------------------------------------
 
