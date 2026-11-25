@@ -5,7 +5,7 @@ Project: Restaurant Management Portal
 Source of Truth: docs/implementation-plan.txt (scope, statuses, acceptance criteria, history)
 Total Phases: 21
 Last Updated: 2026-11-25
-Current Phase: F05 - Owner staff management (PENDING; proposal and approval required)
+Current Phase: F06 - Restaurant tables management (PENDING; proposal and approval required)
 
 LEGEND
 [x] = Implemented and verified as completed
@@ -14,12 +14,13 @@ Evidence tags: (re-verified YYYY-MM-DD) = check re-run on that date; (historical
 README.md, docs/api-endpoints.txt or prior approved session records, not re-run since.
 
 OVERALL PROGRESS
-- Completed Phases: 4 / 21 (F01, F02, F03, F04)
+- Completed Phases: 5 / 21 (F01, F02, F03, F04, F05)
 - In Progress: 0
-- Pending Phases: 17 (F05-F21)
-- Verified Tasks: 86 / 322
-- Current Blockers: The second developer must run
-  db:migrate:deploy and D5 after pulling F03 (decision D6).
+- Pending Phases: 16 (F06-F21)
+- Verified Tasks: 107 / 322 (F01-F05 106, F11 1 decision item)
+- Current Blockers: Gate C "empty application schema" test fails since the owner account exists (pre-existing,
+  F02 code; needs a human decision). The second developer must run db:migrate:deploy and D5 after
+  pulling F03 (decision D6), and S6 + restaurant_test after pulling F05.
   F11 is blocked until the customer ordering mode decision is approved.
 
 ===================================================================================================
@@ -194,41 +195,41 @@ Human Approval:
 ---------------------------------------------------------------------------------------------------
 
 PHASE F05 - Owner staff management
-Status: PENDING
+Status: COMPLETED (2026-11-26)
 Dependencies: Prior approved foundation and relevant completed modules (F03)
-Progress: 0 / 20
+Progress: 20 / 20
 
 Backend:
-[ ] GET /api/v1/staff (owner only)
-[ ] POST /api/v1/staff creates a kitchen or waiter account with an assigned role
-[ ] PATCH /api/v1/staff/:id
-[ ] Activate and deactivate staff endpoints
-[ ] Setup invitation/activation using hashed, expiring, single-use StaffSetupToken
-[ ] Employees cannot change their own role
+[x] GET /api/v1/staff (owner only) (staff.e2e-spec.ts (2026-11-26))
+[x] POST /api/v1/staff creates a kitchen or waiter account with an assigned role (e2e + unit (2026-11-26))
+[x] PATCH /api/v1/staff/:id (e2e: name/role/email rules, session revocation (2026-11-26))
+[x] Activate and deactivate staff endpoints (e2e + unit lifecycle (2026-11-26))
+[x] Setup invitation/activation using hashed, expiring, single-use StaffSetupToken (e2e/unit + test:db:isolated 6/6 on real PostgreSQL (2026-11-26))
+[x] Employees cannot change their own role (KITCHEN_STAFF/WAITER 403 on every staff route; OWNER never managed (2026-11-26))
 
 Frontend:
-[ ] Staff list page
-[ ] Create/edit staff form with validation
-[ ] Activate/deactivate actions with confirmation
+[x] Staff list page (staff-page.test.tsx + human browser test (2026-11-26))
+[x] Create/edit staff form with validation (staff-page.test.tsx (2026-11-26))
+[x] Activate/deactivate actions with confirmation (staff-page.test.tsx (2026-11-26))
 
 Security:
-[ ] Owner-only enforcement on the server
-[ ] No plaintext passwords stored, returned or logged
-[ ] Deactivated users' sessions invalidated or checked on every request
+[x] Owner-only enforcement on the server (@Roles('OWNER') + e2e matrix (2026-11-26))
+[x] No plaintext passwords stored, returned or logged (Argon2id; e2e response + log scans (2026-11-26))
+[x] Deactivated users' sessions invalidated or checked on every request (revoked in the deactivation transaction + F03 per-request check; e2e (2026-11-26))
 
 Testing / Verification:
-[ ] e2e owner-only permission matrix
-[ ] Deactivation blocks access
-[ ] Setup token expiry and reuse rejected
+[x] e2e owner-only permission matrix (staff.e2e-spec.ts (2026-11-26))
+[x] Deactivation blocks access (e2e: old cookie 401, login 401 (2026-11-26))
+[x] Setup token expiry and reuse rejected (e2e + unit (2026-11-26))
 
 Documentation:
-[ ] Staff endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt
-[ ] Plan closeout with OWASP review and test results
+[x] Staff endpoints recorded in docs/api-endpoints.txt and docs/endpoints.txt (2026-11-26)
+[x] Plan closeout with OWASP review and test results (2026-11-26)
 
 Human Approval:
-[ ] Staff invitation/activation flow decision approved
-[x] Proposal with SECURITY IMPACT & OWASP REVIEW approved (2026-11-20)
-[ ] Completion approved after verification
+[x] Staff invitation/activation flow decision approved (2026-11-26, S1/S2: one-time link, manual sharing)
+[x] Proposal with SECURITY IMPACT & OWASP REVIEW approved (2026-11-26; reconciled: the earlier 2026-11-20 mark had no matching plan record)
+[x] Completion approved after verification (human browser test 2026-11-26)
 
 ---------------------------------------------------------------------------------------------------
 

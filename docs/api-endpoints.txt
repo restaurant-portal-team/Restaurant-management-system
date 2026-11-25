@@ -92,6 +92,138 @@ TEST EVIDENCE: backend e2e (profile, expiry, forged token, deactivation, role ma
         controller); frontend (require-auth.test.tsx: redirects, wrong role, error state, malformed response).
 NOTES / CHANGE HISTORY: 2026-11-20 created in F03.
 
+FEATURE ID: F05
+METHOD + PATH: GET /api/v1/staff
+STATUS: IMPLEMENTED (code + backend unit/e2e + frontend tests; real PostgreSQL test:db + test:db:isolated;
+        human browser verification 2026-11-26)
+AUTH / ROLES: OWNER only (@Roles('OWNER'), server-side RolesGuard; session cookie). KITCHEN_STAFF/WAITER -> 403, no session -> 401.
+        Targets limited to KITCHEN_STAFF/WAITER accounts: OWNER or unknown ids -> 404 "Staff member not found." (S3).
+REQUEST DTO / VALIDATION: ListStaffQuery {status?: PENDING|ACTIVE|DEACTIVATED}; unknown query parameters -> 400.
+SUCCESS RESPONSE: 200 {"staff":[StaffView]} newest first, max 200. StaffView = {"id","fullName","email","role","status":"PENDING|ACTIVE|DEACTIVATED","createdAt","activatedAt","deactivatedAt"}
+        (never password/token hashes, isActive or createdById). Cache-Control: no-store.
+ERROR RESPONSES: 400 validation; 401; 403.
+BACKEND CONTROLLER / SERVICE: backend/src/staff/ (StaffController.list -> StaffService.list)
+FRONTEND CONSUMER: frontend/src/features/staff/use-staff.ts useStaffList -> routes/staff-page.tsx
+TEST EVIDENCE: backend unit (staff.service.spec.ts); backend e2e (staff.e2e-spec.ts: permission matrix, validation,
+        lifecycle, token reuse/expiry/replacement, session revocation, rate limit, no secrets in bodies or logs);
+        frontend (staff-page.test.tsx, setup-password-page.test.tsx). Real-DB: test/db/f05-staff.db-spec.ts and
+        test/db-isolated/f05-staff-concurrency.db-spec.ts - PASS 2026-11-26 (after S6).
+NOTES / CHANGE HISTORY: 2026-11-26 created in F05 (decisions S1-S6).
+
+FEATURE ID: F05
+METHOD + PATH: POST /api/v1/staff
+STATUS: IMPLEMENTED (code + backend unit/e2e + frontend tests; real PostgreSQL test:db + test:db:isolated;
+        human browser verification 2026-11-26)
+AUTH / ROLES: OWNER only (@Roles('OWNER'), server-side RolesGuard; session cookie). KITCHEN_STAFF/WAITER -> 403, no session -> 401.
+        Targets limited to KITCHEN_STAFF/WAITER accounts: OWNER or unknown ids -> 404 "Staff member not found." (S3).
+        Origin must be in CORS_ORIGIN (403).
+REQUEST DTO / VALIDATION: CreateStaffDto {fullName: normalised (trim, collapse spaces, no control chars, max 120); email: trimmed,
+        lower-cased, valid, max 254; role: KITCHEN_STAFF|WAITER}. Unknown fields (isActive, passwordHash, ...) and role OWNER -> 400.
+SUCCESS RESPONSE: 201 {"staff":StaffView (status PENDING),"setup":{"url":"<first CORS_ORIGIN>/setup-password#token=<43 chars>","expiresAt"}}.
+        The raw token is returned only here; only its SHA-256 hash is stored; expires in 24 h. Cache-Control: no-store.
+ERROR RESPONSES: 400 validation; 401; 403 role/origin; 409 "A staff member with this email already exists."
+BACKEND CONTROLLER / SERVICE: backend/src/staff/ (StaffController.create -> StaffService.create (one transaction: user + setup token; created_by_id = owner))
+FRONTEND CONSUMER: frontend/src/features/staff/use-staff.ts useCreateStaff -> routes/staff-page.tsx (Add staff dialog, one-time link dialog with Copy)
+TEST EVIDENCE: backend unit (staff.service.spec.ts); backend e2e (staff.e2e-spec.ts: permission matrix, validation,
+        lifecycle, token reuse/expiry/replacement, session revocation, rate limit, no secrets in bodies or logs);
+        frontend (staff-page.test.tsx, setup-password-page.test.tsx). Real-DB: test/db/f05-staff.db-spec.ts and
+        test/db-isolated/f05-staff-concurrency.db-spec.ts - PASS 2026-11-26 (after S6).
+NOTES / CHANGE HISTORY: 2026-11-26 created in F05 (decisions S1-S6).
+
+FEATURE ID: F05
+METHOD + PATH: PATCH /api/v1/staff/:id
+STATUS: IMPLEMENTED (code + backend unit/e2e + frontend tests; real PostgreSQL test:db + test:db:isolated;
+        human browser verification 2026-11-26)
+AUTH / ROLES: OWNER only (@Roles('OWNER'), server-side RolesGuard; session cookie). KITCHEN_STAFF/WAITER -> 403, no session -> 401.
+        Targets limited to KITCHEN_STAFF/WAITER accounts: OWNER or unknown ids -> 404 "Staff member not found." (S3).
+        Origin required. :id must be a UUID (400).
+REQUEST DTO / VALIDATION: UpdateStaffDto {fullName?, email?, role?: KITCHEN_STAFF|WAITER}; at least one field (400). Email only while the
+        account is pending and never activated (S4); the change expires all outstanding setup links atomically.
+SUCCESS RESPONSE: 200 {"staff":StaffView}. A role change revokes every session of that account (S3). Cache-Control: no-store.
+ERROR RESPONSES: 400; 401; 403; 404; 409 email change after setup / duplicate email.
+BACKEND CONTROLLER / SERVICE: backend/src/staff/ (StaffController.update -> StaffService.update)
+FRONTEND CONSUMER: frontend/src/features/staff/use-staff.ts useUpdateStaff -> routes/staff-page.tsx (Edit dialog; email locked unless pending)
+TEST EVIDENCE: backend unit (staff.service.spec.ts); backend e2e (staff.e2e-spec.ts: permission matrix, validation,
+        lifecycle, token reuse/expiry/replacement, session revocation, rate limit, no secrets in bodies or logs);
+        frontend (staff-page.test.tsx, setup-password-page.test.tsx). Real-DB: test/db/f05-staff.db-spec.ts and
+        test/db-isolated/f05-staff-concurrency.db-spec.ts - PASS 2026-11-26 (after S6).
+NOTES / CHANGE HISTORY: 2026-11-26 created in F05 (decisions S1-S6).
+
+FEATURE ID: F05
+METHOD + PATH: POST /api/v1/staff/:id/deactivate
+STATUS: IMPLEMENTED (code + backend unit/e2e + frontend tests; real PostgreSQL test:db + test:db:isolated;
+        human browser verification 2026-11-26)
+AUTH / ROLES: OWNER only (@Roles('OWNER'), server-side RolesGuard; session cookie). KITCHEN_STAFF/WAITER -> 403, no session -> 401.
+        Targets limited to KITCHEN_STAFF/WAITER accounts: OWNER or unknown ids -> 404 "Staff member not found." (S3).
+        Origin required.
+REQUEST DTO / VALIDATION: No body. :id UUID.
+SUCCESS RESPONSE: 200 {"staff":StaffView (DEACTIVATED)}. Same transaction: is_active=false, deactivated_at, all sessions revoked,
+        outstanding setup links expired.
+ERROR RESPONSES: 400; 401; 403; 404; 409 already deactivated.
+BACKEND CONTROLLER / SERVICE: backend/src/staff/ (StaffController.deactivate -> StaffService.deactivate)
+FRONTEND CONSUMER: frontend/src/features/staff/use-staff.ts useDeactivateStaff -> routes/staff-page.tsx (confirmation dialog)
+TEST EVIDENCE: backend unit (staff.service.spec.ts); backend e2e (staff.e2e-spec.ts: permission matrix, validation,
+        lifecycle, token reuse/expiry/replacement, session revocation, rate limit, no secrets in bodies or logs);
+        frontend (staff-page.test.tsx, setup-password-page.test.tsx). Real-DB: test/db/f05-staff.db-spec.ts and
+        test/db-isolated/f05-staff-concurrency.db-spec.ts - PASS 2026-11-26 (after S6).
+NOTES / CHANGE HISTORY: 2026-11-26 created in F05 (decisions S1-S6).
+
+FEATURE ID: F05
+METHOD + PATH: POST /api/v1/staff/:id/activate
+STATUS: IMPLEMENTED (code + backend unit/e2e + frontend tests; real PostgreSQL test:db + test:db:isolated;
+        human browser verification 2026-11-26)
+AUTH / ROLES: OWNER only (@Roles('OWNER'), server-side RolesGuard; session cookie). KITCHEN_STAFF/WAITER -> 403, no session -> 401.
+        Targets limited to KITCHEN_STAFF/WAITER accounts: OWNER or unknown ids -> 404 "Staff member not found." (S3).
+        Origin required.
+REQUEST DTO / VALIDATION: No body. :id UUID.
+SUCCESS RESPONSE: 200 {"staff":StaffView (ACTIVE)}. Only for DEACTIVATED accounts that were activated before and have a password.
+ERROR RESPONSES: 400; 401; 403; 404; 409 already active / pending setup / never completed setup.
+BACKEND CONTROLLER / SERVICE: backend/src/staff/ (StaffController.activate -> StaffService.activate)
+FRONTEND CONSUMER: frontend/src/features/staff/use-staff.ts useActivateStaff -> routes/staff-page.tsx (Reactivate confirmation)
+TEST EVIDENCE: backend unit (staff.service.spec.ts); backend e2e (staff.e2e-spec.ts: permission matrix, validation,
+        lifecycle, token reuse/expiry/replacement, session revocation, rate limit, no secrets in bodies or logs);
+        frontend (staff-page.test.tsx, setup-password-page.test.tsx). Real-DB: test/db/f05-staff.db-spec.ts and
+        test/db-isolated/f05-staff-concurrency.db-spec.ts - PASS 2026-11-26 (after S6).
+NOTES / CHANGE HISTORY: 2026-11-26 created in F05 (decisions S1-S6).
+
+FEATURE ID: F05
+METHOD + PATH: POST /api/v1/staff/:id/setup-link
+STATUS: IMPLEMENTED (code + backend unit/e2e + frontend tests; real PostgreSQL test:db + test:db:isolated;
+        human browser verification 2026-11-26)
+AUTH / ROLES: OWNER only (@Roles('OWNER'), server-side RolesGuard; session cookie). KITCHEN_STAFF/WAITER -> 403, no session -> 401.
+        Targets limited to KITCHEN_STAFF/WAITER accounts: OWNER or unknown ids -> 404 "Staff member not found." (S3).
+        Origin required.
+REQUEST DTO / VALIDATION: No body. :id UUID.
+SUCCESS RESPONSE: 200 {"setup":{"url","expiresAt"}} (new 24 h single-use link; all older links expire in the same transaction).
+        Cache-Control: no-store. Never a password reset: only pending, never-activated accounts.
+ERROR RESPONSES: 400; 401; 403; 404; 409 account not pending.
+BACKEND CONTROLLER / SERVICE: backend/src/staff/ (StaffController.regenerateSetupLink -> StaffService.regenerateSetupLink)
+FRONTEND CONSUMER: frontend/src/features/staff/use-staff.ts useRegenerateSetupLink -> routes/staff-page.tsx (Setup link action)
+TEST EVIDENCE: backend unit (staff.service.spec.ts); backend e2e (staff.e2e-spec.ts: permission matrix, validation,
+        lifecycle, token reuse/expiry/replacement, session revocation, rate limit, no secrets in bodies or logs);
+        frontend (staff-page.test.tsx, setup-password-page.test.tsx). Real-DB: test/db/f05-staff.db-spec.ts and
+        test/db-isolated/f05-staff-concurrency.db-spec.ts - PASS 2026-11-26 (after S6).
+NOTES / CHANGE HISTORY: 2026-11-26 created in F05 (decisions S1-S6).
+
+FEATURE ID: F05
+METHOD + PATH: POST /api/v1/staff/setup-password
+STATUS: IMPLEMENTED (code + backend unit/e2e + frontend tests; real PostgreSQL test:db + test:db:isolated;
+        human browser verification 2026-11-26)
+AUTH / ROLES: Public (@Public). Origin must be in CORS_ORIGIN (403). Rate limit 5/min per client IP (429).
+REQUEST DTO / VALIDATION: SetupPasswordDto {token: 43-char base64url; password: 1-256}; new-password policy 12-128 chars, no leading/trailing
+        spaces, not equal to the email (400 with the policy message; the link is not consumed).
+SUCCESS RESPONSE: 204. In one transaction: account must still be pending and never activated; token claimed exactly once
+        (used_at); password stored as Argon2id; is_active=true, activated_at; other outstanding links expired.
+ERROR RESPONSES: 400 "This setup link is invalid or has expired. Ask the owner for a new link." (unknown/used/expired/replaced token,
+        deactivated or already active account); 403 origin; 429.
+BACKEND CONTROLLER / SERVICE: backend/src/staff/ (StaffSetupController.setupPassword -> StaffService.completeSetup)
+FRONTEND CONSUMER: frontend/src/features/staff/staff-api.ts completeSetup -> routes/setup-password-page.tsx (token read from the #fragment, then removed from history)
+TEST EVIDENCE: backend unit (staff.service.spec.ts); backend e2e (staff.e2e-spec.ts: permission matrix, validation,
+        lifecycle, token reuse/expiry/replacement, session revocation, rate limit, no secrets in bodies or logs);
+        frontend (staff-page.test.tsx, setup-password-page.test.tsx). Real-DB: test/db/f05-staff.db-spec.ts and
+        test/db-isolated/f05-staff-concurrency.db-spec.ts - PASS 2026-11-26 (after S6).
+NOTES / CHANGE HISTORY: 2026-11-26 created in F05 (decisions S1-S6).
+
 GLOBAL API CONVENTIONS (F01)
 - Error body for all non-health errors: {"statusCode","error","message","requestId","timestamp"}; 5xx always returns
   a generic message; no stack traces, SQL, paths or config values are ever returned.
@@ -100,7 +232,7 @@ GLOBAL API CONVENTIONS (F01)
 - Validation: global ValidationPipe (whitelist, forbidNonWhitelisted, forbidUnknownValues, transform).
 - Every response carries X-Request-Id (caller value accepted only if /^[A-Za-z0-9-]{8,64}$/).
 - Authentication (F03): global deny-by-default SessionAuthGuard; @Public() routes: GET /health, POST /auth/login,
-  POST /auth/logout. RolesGuard enforces @Roles(...) with the role read from the database. 401 message
+  POST /auth/logout, POST /staff/setup-password (F05). RolesGuard enforces @Roles(...) with the role read from the database. 401 message
   "Authentication required."; 403 "You do not have permission to perform this action.".
 - CSRF (F03): POST/PUT/PATCH/DELETE require an Origin header from CORS_ORIGIN (403 "Request origin is not allowed.").
 
@@ -108,11 +240,13 @@ DRAFT API INVENTORY — PLANNED UNLESS MARKED IMPLEMENTED
 F03  POST   /api/v1/auth/login                  IMPLEMENTED (see above)
 F03  POST   /api/v1/auth/logout                 IMPLEMENTED (see above)
 F03  GET    /api/v1/auth/me                     IMPLEMENTED (see above)
-F05  GET    /api/v1/staff                       PLANNED
-F05  POST   /api/v1/staff                       PLANNED
-F05  PATCH  /api/v1/staff/:id                   PLANNED
-F05  POST   /api/v1/staff/:id/deactivate        PLANNED
-F05  POST   /api/v1/staff/:id/activate          PLANNED
+F05  GET    /api/v1/staff                       IMPLEMENTED (see above)
+F05  POST   /api/v1/staff                       IMPLEMENTED (see above)
+F05  PATCH  /api/v1/staff/:id                   IMPLEMENTED (see above)
+F05  POST   /api/v1/staff/:id/deactivate        IMPLEMENTED (see above)
+F05  POST   /api/v1/staff/:id/activate          IMPLEMENTED (see above)
+F05  POST   /api/v1/staff/:id/setup-link        IMPLEMENTED (new in F05; see above)
+F05  POST   /api/v1/staff/setup-password        IMPLEMENTED (requirements section 13 path; see above)
 F06  GET    /api/v1/tables                      PLANNED
 F06  POST   /api/v1/tables                      PLANNED
 F06  PATCH  /api/v1/tables/:id                  PLANNED
@@ -150,5 +284,5 @@ OPEN CONTRACT DECISIONS
 - [RESOLVED A2] Customers order as unauthenticated guests (no customer accounts, login or CUSTOMER role).
   Still open: safe table verification (QR/table token vs verified table) and guest permissions.
 - Decide order cancellation and refund policies before adding endpoints.
-- Decide session setup invitation flow before exposing staff credential endpoints.
+- [RESOLVED F05 S1/S2] Staff setup invitation: one-time link shown to the Owner, shared manually; 24 h, single-use.
 - Determine how kitchen orders are filtered by status and how paginated lists work.

@@ -22,6 +22,7 @@
     "test:cov": "vitest run --coverage",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "test:db": "vitest run --config ./vitest.config.db.ts",
+    "test:db:isolated": "vitest run --config ./vitest.config.db-isolated.ts",
     "unicode:generate": "node scripts/unicode/generate-pg-simple-lower.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",

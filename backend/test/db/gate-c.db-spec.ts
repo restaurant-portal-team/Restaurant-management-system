@@ -240,7 +240,10 @@ describe('F02 Gate C — rollback-only behavioral tests (restaurant_app @ restau
     it('grants DML only (no TRUNCATE/REFERENCES/TRIGGER) on every application table owned by the migrator; Gate E audit restrictions', async () => {
       // Gate E (human-executed 2026-11-16): inventory_movements is append-only for the runtime role (no UPDATE/DELETE);
       // payments cannot be deleted by the runtime role (UPDATE retained for future corrections/voids).
+      // F05 S6 (human-executed): staff accounts and setup tokens are never hard-deleted by the runtime role.
       const restricted: Partial<Record<(typeof APP_TABLES)[number], { upd: boolean; del: boolean }>> = {
+        users: { upd: true, del: false },
+        staff_setup_tokens: { upd: true, del: false },
         inventory_movements: { upd: false, del: false },
         payments: { upd: true, del: false },
       };

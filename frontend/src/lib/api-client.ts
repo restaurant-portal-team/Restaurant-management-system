@@ -24,7 +24,7 @@ const DEFAULT_TIMEOUT_MS = 10_000;
  * Returns undefined for 204 No Content.
  */
 async function request<T>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PATCH',
   path: string,
   body: unknown,
   options: RequestOptions,
@@ -81,6 +81,11 @@ export function apiGet<T>(path: string, options: RequestOptions = {}): Promise<T
 /** JSON POST (body optional). */
 export function apiPost<T>(path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
   return request<T>('POST', path, body, options);
+}
+
+/** JSON PATCH (partial update). */
+export function apiPatch<T>(path: string, body: unknown, options: RequestOptions = {}): Promise<T> {
+  return request<T>('PATCH', path, body, options);
 }
 
 function extractMessage(body: unknown): string | null {

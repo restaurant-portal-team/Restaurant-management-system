@@ -7,6 +7,8 @@ import { StaffShell } from '../layouts/staff-shell';
 import { HomePage } from '../routes/home-page';
 import { LoginPage } from '../routes/login-page';
 import { NotFoundPage } from '../routes/not-found-page';
+import { SetupPasswordPage } from '../routes/setup-password-page';
+import { StaffPage } from '../routes/staff-page';
 import { ComingSoonPage, OverviewPage, ProfilePage } from '../routes/workspace-pages';
 import { type NavItem, navItems, type ShellKind } from './navigation';
 
@@ -22,6 +24,8 @@ function pageFor(shell: ShellKind, item: NavItem) {
       return <ComingSoonPage title={item.label} feature={item.page.feature} />;
     case 'profile':
       return <ProfilePage title={item.label} />;
+    case 'section':
+      return <StaffPage />;
   }
 }
 
@@ -43,6 +47,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <HomePage /> },
       { path: 'login', element: <LoginPage /> },
+      { path: 'setup-password', element: <SetupPasswordPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

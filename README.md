@@ -123,6 +123,7 @@ npm run dev            # http://localhost:5173
 | `npm run db:migrate:check-shadow` | Isolation preflight, then `prisma migrate diff --from-migrations --to-schema --exit-code` with the **shadow-only** config `prisma.shadow-check.config.ts` (no main-database URL is given to Prisma) | Shadow DB only (Prisma wipes/rebuilds it) |
 | `npm run db:migrate:deploy`   | Isolation preflight, then `prisma migrate deploy` | **Yes — only with explicit approval** |
 | `npm run test:db`             | Real-database suites: rollback-only runtime tests + read-only migrator checks (section 6.5) | No persistent data (sequence values advance) |
+| `npm run test:db:isolated`    | F05 concurrency suite on the isolated `restaurant_test` database only (section 6.7.1); refuses any other database | **Yes — throw-away rows in `restaurant_test` only** |
 | `npm run unicode:generate`    | Regenerates the PostgreSQL 17 case table used for name keys (section 6.6); offline | No |
 | `npm run auth:bootstrap-owner` | Interactive: creates the first Owner account (section 7.1); refuses if one exists | **Yes — one `users` row** |
 
@@ -202,6 +203,7 @@ Execute as **`postgres`** (superuser; acts as the object owner) or as the owner 
 | E1 | `REVOKE UPDATE, DELETE ON TABLE public.inventory_movements FROM restaurant_app;` | stock ledger is append-only for the runtime (INSERT/SELECT kept) |
 | E2 | `REVOKE DELETE ON TABLE public.payments FROM restaurant_app;` | payments cannot be deleted by the runtime (INSERT/SELECT/UPDATE kept) |
 | D5 (F03) | `REVOKE DELETE ON TABLE public.staff_sessions FROM restaurant_app;` | login sessions are revoked (`revoked_at`), never deleted by the runtime (SELECT/INSERT/UPDATE kept); run after migration `20261120100000_staff_sessions` |
+| S6 (F05) | `REVOKE DELETE ON TABLE public.users, public.staff_setup_tokens FROM restaurant_app;` | staff accounts are deactivated and setup tokens expired/used, never hard-deleted by the runtime (SELECT/INSERT/UPDATE kept) |
 
 Verification (effective privileges, read-only):
 
@@ -212,6 +214,8 @@ SELECT has_table_privilege('restaurant_app','public._prisma_migrations','SELECT'
        has_table_privilege('restaurant_app','public.inventory_movements','DELETE')   AS e1_del,  -- false
        has_table_privilege('restaurant_app','public.payments','DELETE')              AS e2_del,  -- false
        has_table_privilege('restaurant_app','public.payments','UPDATE')              AS e2_upd,  -- true
+       has_table_privilege('restaurant_app','public.users','DELETE')                 AS s6_usr,  -- false
+       has_table_privilege('restaurant_app','public.staff_setup_tokens','DELETE')    AS s6_tok,  -- false
        has_table_privilege('restaurant_migrator','public._prisma_migrations','INSERT') AS mig_ok; -- true
 ```
 
@@ -225,12 +229,27 @@ GRANT TEMPORARY ON DATABASE restaurant_dev TO PUBLIC;
 GRANT UPDATE, DELETE ON TABLE public.inventory_movements TO restaurant_app;
 GRANT DELETE ON TABLE public.payments TO restaurant_app;
 GRANT DELETE ON TABLE public.staff_sessions TO restaurant_app;
+GRANT DELETE ON TABLE public.users, public.staff_setup_tokens TO restaurant_app;
 ```
 
 **When to run it**
 
 - **First-time setup of a fresh database:** after the human creates roles/databases and default privileges (section 1) and the **first** `npm run db:migrate:deploy` creates the tables and `_prisma_migrations`, run D1, D2, E1 and E2 immediately, then verify. Until then the runtime role holds DML on `_prisma_migrations` and the audit tables.
 - **Normal deployments to an already-hardened database:** ACLs persist, so D1–E2 are not re-run; always verify afterwards (6.4 step 6). If a migration adds a **new table**, it automatically receives runtime DML (see 6.8) — review whether it needs restrictions (separate approval).
+
+### 6.7.1 Isolated test database `restaurant_test` (F05)
+
+Concurrency tests (`npm run test:db:isolated`) commit throw-away rows, so they never run against `restaurant_dev`: the helper refuses unless it is connected as `restaurant_app` to `restaurant_test`. It reuses the `restaurant_app` credentials from `backend/.env` with the database name replaced (no extra secret file).
+
+Create it as `postgres` (connected to the `postgres` database) **after** all hardening steps above, with the backend stopped and pgAdmin disconnected from `restaurant_dev` (a template copy needs it idle):
+
+```sql
+CREATE DATABASE restaurant_test TEMPLATE restaurant_dev OWNER restaurant_migrator;
+REVOKE ALL ON DATABASE restaurant_test FROM PUBLIC;
+GRANT CONNECT ON DATABASE restaurant_test TO restaurant_app;
+```
+
+The copy carries the schema, migration history, table ACLs and default privileges (and existing dev rows). After every new migration, refresh it: `DROP DATABASE restaurant_test;` and create it again. Each developer creates their own copy locally.
 
 ### 6.8 Default privileges risk and pending guard
 
@@ -255,6 +274,14 @@ Security baseline: Helmet headers, explicit CORS allowlist (no `*`), global Vali
 - **Passwords:** Argon2id (m=19 MiB, t=2, p=1) via `@node-rs/argon2`; new passwords 12–128 characters. Login failures return one generic `401 Invalid email or password.` with equalised timing; login is limited to 5 attempts per minute per IP.
 - **First Owner (D3):** in `backend/`, run `npm run auth:bootstrap-owner` in an interactive terminal and type the name, email and password (hidden). There are no default or seeded credentials; the script refuses if an Owner already exists and prints only the new account id. Further staff accounts are created by the Owner in F05.
 - **After pulling F03 on another laptop:** `npm install`, `npm run db:migrate:check-shadow`, `npm run db:migrate:deploy`, then run D5 (section 6.7) as `postgres`, then `npm run test:db`.
+
+### 7.2 Staff management and onboarding (F05)
+
+- **Owner only:** `/api/v1/staff/*` is `OWNER`-only on the server. Only `KITCHEN_STAFF` and `WAITER` accounts are managed; `OWNER` accounts are never listed, created, changed or deactivated here (they return 404).
+- **Lifecycle:** *Pending* (created, no password) → *Active* (setup completed) → *Deactivated*. Previously activated accounts can be reactivated; accounts deactivated before completing setup cannot. Email can be changed only while pending (old setup links stop working).
+- **Setup links (S1/S2):** creating a staff member (or "New setup link") returns `<web origin>/setup-password#token=…` **once** (`Cache-Control: no-store`). The web origin is the first `CORS_ORIGIN` entry (never the request's Host header). The token is 32 random bytes; only its SHA-256 hash is stored. Links work once, expire after 24 hours and die when replaced. The Owner shares the link privately (no email service in the MVP).
+- **Sessions:** deactivation and role changes revoke every session of that account in the same transaction; the frontend sends the user to sign in on their next request (no real-time push).
+- **After pulling F05 on another laptop:** no migration. Run S6 (section 6.7) as `postgres`, create `restaurant_test` (section 6.7.1), then `npm run test:db` and `npm run test:db:isolated`.
 
 ## 8. Git hygiene
 

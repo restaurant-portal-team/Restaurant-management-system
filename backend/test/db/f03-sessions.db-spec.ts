@@ -118,10 +118,17 @@ describe('F03 staff_sessions (restaurant_app @ restaurant_dev, rolled back)', ()
   });
 
   it('a user with sessions cannot be deleted (ON DELETE RESTRICT keeps the audit trail)', async () => {
+    // Since F05 S6 the runtime role has no DELETE on users at all (42501, checked before the FK);
+    // the ON DELETE RESTRICT foreign key itself is asserted from the catalog.
     await inRollback(client, async () => {
       const userId = await seedUser();
       await client.query(insertSession(userId, tokenHash()));
-      expect(failureOf(await tryQuery(client, `DELETE FROM users WHERE id = '${userId}'`)).code).toBe('23503');
+      expect(failureOf(await tryQuery(client, `DELETE FROM users WHERE id = '${userId}'`)).code).toBe('42501');
     });
+    const fk = await client.query<{ del: string; upd: string }>(
+      `SELECT confdeltype::text AS del, confupdtype::text AS upd FROM pg_constraint
+        WHERE conname = 'staff_sessions_user_id_fkey' AND conrelid = 'public.staff_sessions'::regclass`,
+    );
+    expect(fk.rows[0]).toEqual({ del: 'r', upd: 'r' });
   });
 });

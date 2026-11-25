@@ -9,6 +9,7 @@ import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { type AppConfig, validateEnv } from './config/env.validation.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { StaffModule } from './staff/staff.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     PrismaModule,
     AuthModule,
     HealthModule,
+    StaffModule,
   ],
   providers: [
     // Order matters: rate limit -> CSRF origin check -> authentication (deny by default) -> roles.

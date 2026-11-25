@@ -230,17 +230,104 @@ HUMAN APPROVAL: Proposal approved 2026-11-25 (U1-U5); completion approved 2026-1
 COMMIT RECOMMENDATION: feat(ui): add Restonex role-based app shells and design system
 
 PHASE 05 | FEATURE F05: Owner staff management
-STATUS: PENDING
+STATUS: COMPLETED (2026-11-26)
 DEPENDENCIES: Prior approved foundation and relevant completed modules
 SCOPE: Owner creates kitchen/waiter accounts, assigns role, securely shares setup invitation or approved credential activation, activates/deactivates staff; role immutable by employee.
 ACCEPTANCE CRITERIA: Owner-only CRUD/activation; no plaintext passwords; disabled sessions invalidated or checked.
-IMPLEMENTATION SUMMARY: Not started.
-FILES CHANGED: None.
-API ENDPOINTS: To be recorded in api-endpoints.txt upon implementation.
-TESTS / VERIFICATION: Not run.
-KNOWN LIMITATIONS / BLOCKERS: None recorded.
-HUMAN APPROVAL: Not granted.
-COMMIT RECOMMENDATION: Not yet.
+APPROVED SCOPE (human-approved 2026-11-26, decisions S1-S6 with the human's modifications):
+  - S1 One-time setup link shown once to the Owner (copy button); manual sharing; no email provider/external service.
+  - S2 Setup tokens: 32 random bytes, SHA-256 hash stored only, 24 h expiry, single-use (atomic consumption),
+    invalid immediately when replaced.
+  - S3 Only KITCHEN_STAFF and WAITER accounts are managed; OWNER accounts are never created, modified, deactivated
+    or assigned through these endpoints. Role changes revoke all sessions of that account.
+  - S4 Email editable only for pending accounts that were never activated; an email change atomically invalidates
+    all outstanding setup tokens. Email change for activated accounts is deferred.
+  - S5 Structured security logs (actor, action, target, request id; no secrets). Audit table deferred.
+  - S6 REVOKE DELETE ON public.users and public.staff_setup_tokens FROM restaurant_app, approved in principle;
+    executed by the human in pgAdmin after the privilege inspection, exact SQL, verification and rollback are
+    provided (human gate). Privilege tests (verify-roles, Gate C) updated accordingly.
+  - Lifecycle Pending / Active / Deactivated enforced server-side; setup links only for eligible pending accounts,
+    never as password reset; deactivated accounts can never be activated by old or regenerated tokens.
+  - Email change, token regeneration/consumption, role change and deactivation are transactionally safe against
+    concurrent requests. Setup URL built from trusted configuration (never Host headers); token in the URL
+    fragment, removed from browser history after reading. Deactivation/role change revokes sessions; the frontend
+    relies on the existing 401 handling (no WebSockets/polling).
+  - Concurrency tests run against an isolated test database with independent connections (never restaurant_dev).
+  - No new dependencies, no migrations; stop and ask if a schema or auth-architecture change becomes necessary.
+IMPLEMENTATION SUMMARY (2026-11-26):
+  - Schema check (no migration needed): existing columns express the lifecycle. PENDING = is_active false and
+    deactivated_at NULL (never activated: activated_at and password_hash NULL); ACTIVE = is_active true (DB CHECK
+    users_active_requires_setup_chk requires password_hash + activated_at); DEACTIVATED = is_active false and
+    deactivated_at NOT NULL; activated_at distinguishes accounts deactivated before completing setup.
+    staff_setup_tokens (token_hash unique, expires_at > created_at, used_at) already existed (F02).
+  - Backend module backend/src/staff: StaffService with conditional UPDATEs that re-state the required state in
+    the WHERE clause (row locks + READ COMMITTED re-evaluation make concurrent requests serialize; the loser
+    updates 0 rows and is rejected). Lock order users -> staff_setup_tokens -> staff_sessions. Setup: user row
+    activated, then token claimed (used_at) exactly once, then other links expired - all in one transaction.
+    Deactivation: is_active false + deactivated_at, links expired, sessions revoked (one transaction). Role change
+    revokes sessions. Email change only for eligible pending accounts and expires links. Reactivation only for
+    previously activated accounts with a password. OWNER/unknown targets -> 404. Setup URL origin = first
+    CORS_ORIGIN entry (trusted configuration); token in the URL fragment. Structured logs (S5): action, actor id,
+    target id, request id only.
+  - Frontend: Staff Management page (/owner/staff, replaces the F04 placeholder): list with status filter and
+    counts, Add/Edit dialogs with client validation, confirmation dialogs, one-time setup link dialog with Copy,
+    loading/empty/error states; 401/403 re-checks the session so RequireAuth sends the user to sign in.
+    Public Set-up-your-account page (/setup-password): reads the token from #token=, removes the fragment from the
+    URL/history (replace navigation), password + confirm with local checks, success screen.
+  - Approved integration changes to completed code: backend/src/app.module.ts (import StaffModule);
+    frontend app/router.tsx + app/navigation.ts (staff page, public setup route); lib/api-client.ts (apiPatch);
+    components/ui/status-badge.tsx (warning + static inactive tones); components/ui/icon.tsx (plus, copy, edit,
+    link, check); test/db/gate-c.db-spec.ts and test/db/f03-sessions.db-spec.ts (S6 privilege expectations);
+    backend/tsconfig.json + package.json (isolated DB test config and script test:db:isolated); README (S6,
+    restaurant_test, section 7.2). No F03 auth internals changed. No new dependencies.
+FILES CHANGED: backend/src/staff/{staff.module,staff.controller,staff.service,staff.types,setup-token}.ts,
+  backend/src/staff/dto/staff.dto.ts, backend/src/staff/staff.service.spec.ts, backend/test/staff.e2e-spec.ts,
+  backend/test/support/fake-staff-db.ts, backend/test/db/f05-staff.db-spec.ts,
+  backend/test/db-isolated/{isolated-db.ts,f05-staff-concurrency.db-spec.ts}, backend/vitest.config.db-isolated.ts,
+  backend/src/app.module.ts, backend/package.json, backend/tsconfig.json, backend/test/db/gate-c.db-spec.ts,
+  backend/test/db/f03-sessions.db-spec.ts; frontend/src/features/staff/{staff-api,use-staff}.ts,
+  frontend/src/routes/{staff-page,setup-password-page}.tsx (+ .test.tsx), frontend/src/app/{router.tsx,navigation.ts},
+  frontend/src/lib/api-client.ts, frontend/src/components/ui/{status-badge,icon}.tsx; README.md;
+  docs/api-endpoints.txt, docs/endpoints.txt, this file, docs/progress-tracker.txt.
+API ENDPOINTS: GET /api/v1/staff, POST /api/v1/staff, PATCH /api/v1/staff/:id, POST /api/v1/staff/:id/deactivate,
+  POST /api/v1/staff/:id/activate, POST /api/v1/staff/:id/setup-link (new), POST /api/v1/staff/setup-password
+  (public). See docs/api-endpoints.txt.
+TESTS / VERIFICATION (2026-11-26):
+  - Backend: lint PASS, typecheck PASS, build PASS, prisma validate PASS; unit 123/123 PASS (13 new); e2e 48/48 PASS
+    (26 new: OWNER-only matrix incl. 401/403 on every route, OWNER targets 404, Origin/CSRF 403, validation and mass
+    assignment 400, duplicate email 409, one-time link + hash-only storage + 24 h TTL, single use, weak password does
+    not consume the link, expired/unknown/replaced tokens, deactivated pending account can never activate, setup link
+    never for activated accounts, deactivation and role change revoke sessions, email change pending-only and kills
+    old links, rate limit 429, no tokens/hashes/passwords/emails/names in responses or logs).
+  - Frontend: lint PASS, typecheck PASS, build PASS, tests 75/75 PASS (15 new). npm audit (frontend) 0 findings.
+  - npm audit --omit=dev (backend): the same 3 pre-existing high findings in the prisma CLI dependency chain (F03
+    record); nothing new introduced.
+  - Read-only privilege inspection (restaurant_app @ restaurant_dev, 2026-11-26): users and staff_setup_tokens ACL
+    restaurant_app=arwd (DELETE granted directly, no role membership, no PUBLIC table grants); default privileges for
+    future tables grant DELETE; 1 user (the bootstrapped owner), 0 setup tokens. The application never deletes users
+    or tokens, so S6 does not affect any workflow.
+  - test:db (before S6): 46/51 PASS. Expected failures until S6 is applied: Gate C privilege matrix, F03 user-delete
+    test (now expects 42501), two F05 S6 tests. Pre-existing failure NOT caused by F05: Gate C "starts from an empty
+    application schema" fails since the human-created Owner exists (users = 1); reported, not changed.
+  - Human DB gate executed 2026-11-26 (human typed the postgres password; script run in the session terminal):
+    S6 REVOKE applied on restaurant_dev (before t|t, after users/tokens DELETE f|f, UPDATE/INSERT kept, ACL
+    restaurant_app=arw on both); restaurant_test created from TEMPLATE restaurant_dev (0 other connections, same
+    database ACL as restaurant_dev, 3 applied migrations, S6 present, no TEMP).
+  - After the gate: test:db 50/51 PASS (all S6/F03/F05 privilege tests pass; only the pre-existing Gate C
+    empty-schema failure remains); test:db:isolated 6/6 PASS on three consecutive runs (parallel token use,
+    regeneration vs setup, deactivation vs setup, email change vs setup, parallel deactivations + session
+    revocation after role change/deactivation, OWNER untouchable); db:verify-roles 24/24 PASS.
+  - Human browser verification 2026-11-26: PASS (reported by the human: "sab theek hai") - add staff, one-time
+    link + copy, setup in a separate window, link reuse rejected, staff login, deactivation signs out,
+    reactivation, role change, mobile/theme check.
+KNOWN LIMITATIONS / BLOCKERS:
+  - Accounts deactivated before completing setup cannot be reactivated or re-invited (strict reading of the approved
+    rules); the email stays reserved. Restoring them to pending would need a human decision.
+  - Logout of a deactivated user happens on their next request (no real-time push, as approved).
+  - Gate C empty-schema test needs a human decision (allow bootstrapped owner rows) - completed F02 code.
+HUMAN APPROVAL: Proposal approved 2026-11-26 (S1-S6 with modifications); completion approved 2026-11-26 after the
+  human browser test.
+COMMIT RECOMMENDATION: feat(staff): add owner staff management and one-time account setup
 
 PHASE 06 | FEATURE F06: Restaurant tables management
 STATUS: PENDING

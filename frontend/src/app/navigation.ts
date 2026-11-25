@@ -15,7 +15,12 @@ export interface NavItem {
   /** Index/overview link: active only on an exact match. */
   end?: boolean;
   /** What the page renders until its feature exists (decision U2: no fake data). */
-  page: { kind: 'overview'; feature: PlannedFeature } | { kind: 'planned'; feature: PlannedFeature } | { kind: 'profile' };
+  page:
+    | { kind: 'overview'; feature: PlannedFeature }
+    | { kind: 'planned'; feature: PlannedFeature }
+    | { kind: 'profile' }
+    /** A built section (F05 onward): the router maps the id to its page component. */
+    | { kind: 'section'; id: 'staff' };
 }
 
 export interface NavGroup {
@@ -27,7 +32,6 @@ export interface NavGroup {
 export type ShellKind = StaffRole | 'CUSTOMER';
 
 const F = {
-  F05: { id: 'F05', name: 'Owner staff management' },
   F06: { id: 'F06', name: 'Restaurant tables management' },
   F07: { id: 'F07', name: 'Ingredient inventory catalog' },
   F08: { id: 'F08', name: 'Inventory restock and adjustments' },
@@ -71,7 +75,7 @@ export const NAVIGATION: Record<ShellKind, NavGroup[]> = {
       label: 'Restaurant',
       items: [
         { label: 'Tables', to: '/owner/tables', icon: 'table', page: { kind: 'planned', feature: F.F06 } },
-        { label: 'Staff Management', to: '/owner/staff', icon: 'users', page: { kind: 'planned', feature: F.F05 } },
+        { label: 'Staff Management', to: '/owner/staff', icon: 'users', page: { kind: 'section', id: 'staff' } },
         { label: 'Billing', to: '/owner/billing', icon: 'receipt', page: { kind: 'planned', feature: F.F16 } },
         { label: 'Settings', to: '/owner/settings', icon: 'settings', page: { kind: 'profile' } },
       ],
